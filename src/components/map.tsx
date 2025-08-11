@@ -4,15 +4,18 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import "leaflet/dist/leaflet.css";
 import L from 'leaflet';
 import { CalculationResult } from '@/lib/types';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import * as React from 'react';
 
 // Fix for default icon issue with webpack
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+if (typeof window !== 'undefined') {
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+}
 
 
 interface MapProps {
@@ -21,7 +24,7 @@ interface MapProps {
 
 const PalestineCenter: L.LatLngExpression = [32.2246, 35.2585]; // Nablus as a center point
 
-function MapContent({ result }: { result: CalculationResult | null }) {
+function MapUpdater({ result }: { result: CalculationResult | null }) {
     const map = useMap();
     useEffect(() => {
         if (result?.route && result.route.length > 0) {
@@ -46,10 +49,6 @@ function MapContent({ result }: { result: CalculationResult | null }) {
 
     return (
         <>
-            <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
             {result?.startCoords && (
                 <Marker position={result.startCoords}>
                     <Popup>نقطة الانطلاق</Popup>
@@ -65,18 +64,23 @@ function MapContent({ result }: { result: CalculationResult | null }) {
     );
 }
 
-export default function Map({ result }: MapProps) {
-    const mapRef = useRef<L.Map | null>(null);
-
+const Map = React.memo(function MapComponent({ result }: MapProps) {
     return (
         <MapContainer
             center={PalestineCenter}
             zoom={8}
             scrollWheelZoom={true}
             style={{ height: '100%', width: '100%' }}
-            whenCreated={map => { mapRef.current = map; }}
         >
-            <MapContent result={result} />
+            <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <MapUpdater result={result} />
         </MapContainer>
     );
-}
+});
+
+Map.displayName = 'Map';
+
+export default Map;
