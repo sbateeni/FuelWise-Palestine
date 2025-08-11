@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { LatLngExpression } from 'leaflet';
 
 export const fuelCostSchema = z.object({
   start: z.string().min(2, { message: "يجب إدخال نقطة انطلاق صالحة." }),
@@ -18,7 +17,4 @@ export interface CalculationResult {
   fuelNeeded: number;
   totalCost: number;
   fuelPrice: number;
-  startCoords?: LatLngExpression;
-  endCoords?: LatLngExpression;
-  route?: LatLngExpression[];
 }

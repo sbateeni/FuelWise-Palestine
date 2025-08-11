@@ -3,7 +3,6 @@
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import dynamic from 'next/dynamic'
 import { ArrowLeftRight, CalendarDays, Car, CircleDollarSign, Droplets, Fuel, Gauge, Layers3, Loader2, MapPin } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -15,11 +14,6 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
 import { calculateFuelCost } from "@/app/actions"
 import { fuelCostSchema, type FuelCostFormValues, type CalculationResult } from "@/lib/types"
-
-const Map = dynamic(() => import('@/components/map'), { 
-  ssr: false,
-  loading: () => <div className="aspect-[4/3] w-full bg-muted flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-})
 
 const vehicleClasses = ["سيارة ركاب", "شاحنة صغيرة", "حافلة", "دراجة نارية"]
 const fuelTypes = ["بنزين 95", "بنزين 98", "سولار"]
@@ -67,8 +61,8 @@ export function FuelCostCalculator() {
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-5">
-            <Card className="lg:col-span-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card>
               <CardHeader>
                 <CardTitle>تفاصيل الرحلة والمركبة</CardTitle>
                 <CardDescription>أدخل معلومات رحلتك ومركبتك لحساب التكلفة.</CardDescription>
@@ -203,17 +197,7 @@ export function FuelCostCalculator() {
               </CardFooter>
             </Card>
 
-            <div className="lg:col-span-2 space-y-8">
-              <Card className="overflow-hidden">
-                <CardHeader>
-                  <CardTitle>الخريطة</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  <div className="aspect-[4/3] w-full bg-muted">
-                    <Map result={result} />
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="space-y-8">
               {result && (
                  <Card>
                     <CardHeader>
