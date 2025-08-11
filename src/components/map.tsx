@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import "leaflet/dist/leaflet.css";
 import L from 'leaflet';
 import { CalculationResult } from '@/lib/types';
-import { useEffect, useState, memo } from 'react';
+import { useEffect } from 'react';
 import * as React from 'react';
 
 // Fix for default icon issue with webpack
@@ -23,33 +23,21 @@ interface MapProps {
 
 const PalestineCenter: L.LatLngExpression = [32.2246, 35.2585]; // Nablus as a center point
 
-// This component handles updating the map view and drawing markers/routes
 function MapUpdater({ result }: { result: CalculationResult | null }) {
     const map = useMap();
-
     useEffect(() => {
         if (result?.route && result.route.length > 0) {
-            try {
-                const bounds = L.latLngBounds(result.route);
-                if(bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [50, 50] });
-                } else {
-                    map.setView(PalestineCenter, 8);
-                }
-            } catch (e) {
-                console.error("Error fitting bounds for route:", e);
-                map.setView(PalestineCenter, 8);
+            const bounds = L.latLngBounds(result.route);
+            if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [50, 50] });
             }
         } else if (result?.startCoords && result?.endCoords) {
              const bounds = L.latLngBounds([result.startCoords, result.endCoords]);
              if (bounds.isValid()) {
                 map.fitBounds(bounds, { padding: [50, 50] });
-             } else {
-                map.setView(PalestineCenter, 8);
              }
         } else {
-            // Do not reset view if there is no result, to avoid weird zoom out on form clear
-            // map.setView(PalestineCenter, 8);
+             map.setView(PalestineCenter, 8);
         }
     }, [map, result]);
 
@@ -70,11 +58,20 @@ function MapUpdater({ result }: { result: CalculationResult | null }) {
     );
 }
 
+const Map = ({ result }: MapProps) => {
+    // We only render the map when we have a result.
+    // This prevents the re-initialization error.
+    if (!result) {
+        return <div style={{ height: '100%', width: '100%', backgroundColor: '#e5e5e5' }} />;
+    }
+    
+    // Using a key on MapContainer that changes with the result might force re-renders
+    // in a way that helps Leaflet. We can create a simple key from result data.
+    const mapKey = result ? `${result.distanceKm}` : 'initial';
 
-// This wrapper ensures MapContainer is only rendered on the client and only once.
-const MapWrapper = memo(function MapComponent({ result }: MapProps) {
     return (
         <MapContainer
+            key={mapKey}
             center={PalestineCenter}
             zoom={8}
             scrollWheelZoom={true}
@@ -87,23 +84,6 @@ const MapWrapper = memo(function MapComponent({ result }: MapProps) {
             <MapUpdater result={result} />
         </MapContainer>
     );
-});
-MapWrapper.displayName = 'MapWrapper';
-
-
-const Map = ({ result }: MapProps) => {
-    // We use a placeholder to avoid rendering MapContainer on server
-    const [isClient, setIsClient] = useState(false);
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    if (!isClient) {
-        return <div style={{ height: '100%', width: '100%', backgroundColor: '#e5e5e5' }} />;
-    }
-    
-    return <MapWrapper result={result} />;
 };
-
 
 export default Map;
