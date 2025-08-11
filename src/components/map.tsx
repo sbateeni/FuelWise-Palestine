@@ -48,7 +48,8 @@ function MapUpdater({ result }: { result: CalculationResult | null }) {
                 map.setView(PalestineCenter, 8);
              }
         } else {
-            map.setView(PalestineCenter, 8);
+            // Do not reset view if there is no result, to avoid weird zoom out on form clear
+            // map.setView(PalestineCenter, 8);
         }
     }, [map, result]);
 
