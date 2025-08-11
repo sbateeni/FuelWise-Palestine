@@ -17,30 +17,35 @@ if (typeof window !== 'undefined') {
     });
 }
 
-
 interface MapProps {
     result: CalculationResult | null;
 }
 
 const PalestineCenter: L.LatLngExpression = [32.2246, 35.2585]; // Nablus as a center point
 
+// This component handles updating the map view and drawing markers/routes
 function MapUpdater({ result }: { result: CalculationResult | null }) {
     const map = useMap();
+
     useEffect(() => {
         if (result?.route && result.route.length > 0) {
             try {
                 const bounds = L.latLngBounds(result.route);
                 if(bounds.isValid()) {
                     map.fitBounds(bounds, { padding: [50, 50] });
+                } else {
+                    map.setView(PalestineCenter, 8);
                 }
             } catch (e) {
-                console.error("Error fitting bounds:", e);
+                console.error("Error fitting bounds for route:", e);
                 map.setView(PalestineCenter, 8);
             }
         } else if (result?.startCoords && result?.endCoords) {
              const bounds = L.latLngBounds([result.startCoords, result.endCoords]);
              if (bounds.isValid()) {
                 map.fitBounds(bounds, { padding: [50, 50] });
+             } else {
+                map.setView(PalestineCenter, 8);
              }
         } else {
             map.setView(PalestineCenter, 8);
@@ -64,9 +69,23 @@ function MapUpdater({ result }: { result: CalculationResult | null }) {
     );
 }
 
+// Main Map component, now memoized and structured to prevent re-initialization
 const Map = React.memo(function MapComponent({ result }: MapProps) {
+    const mapKey = React.useMemo(() => `map-${Date.now()}-${Math.random()}`, []);
+
+    // We use a placeholder to avoid rendering MapContainer on server
+    const [isClient, setIsClient] = React.useState(false);
+    React.useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    if (!isClient) {
+        return <div style={{ height: '100%', width: '100%', backgroundColor: '#e5e5e5' }} />;
+    }
+
     return (
         <MapContainer
+            key={mapKey}
             center={PalestineCenter}
             zoom={8}
             scrollWheelZoom={true}
