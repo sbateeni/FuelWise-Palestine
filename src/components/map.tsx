@@ -4,7 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import "leaflet/dist/leaflet.css";
 import L from 'leaflet';
 import { CalculationResult } from '@/lib/types';
-import { useEffect } from 'react';
+import { useEffect, useState, memo } from 'react';
 import * as React from 'react';
 
 // Fix for default icon issue with webpack
@@ -69,23 +69,11 @@ function MapUpdater({ result }: { result: CalculationResult | null }) {
     );
 }
 
-// Main Map component, now memoized and structured to prevent re-initialization
-const Map = React.memo(function MapComponent({ result }: MapProps) {
-    const mapKey = React.useMemo(() => `map-${Date.now()}-${Math.random()}`, []);
 
-    // We use a placeholder to avoid rendering MapContainer on server
-    const [isClient, setIsClient] = React.useState(false);
-    React.useEffect(() => {
-        setIsClient(true);
-    }, []);
-
-    if (!isClient) {
-        return <div style={{ height: '100%', width: '100%', backgroundColor: '#e5e5e5' }} />;
-    }
-
+// This wrapper ensures MapContainer is only rendered on the client and only once.
+const MapWrapper = memo(function MapComponent({ result }: MapProps) {
     return (
         <MapContainer
-            key={mapKey}
             center={PalestineCenter}
             zoom={8}
             scrollWheelZoom={true}
@@ -99,7 +87,22 @@ const Map = React.memo(function MapComponent({ result }: MapProps) {
         </MapContainer>
     );
 });
+MapWrapper.displayName = 'MapWrapper';
 
-Map.displayName = 'Map';
+
+const Map = ({ result }: MapProps) => {
+    // We use a placeholder to avoid rendering MapContainer on server
+    const [isClient, setIsClient] = useState(false);
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    if (!isClient) {
+        return <div style={{ height: '100%', width: '100%', backgroundColor: '#e5e5e5' }} />;
+    }
+    
+    return <MapWrapper result={result} />;
+};
+
 
 export default Map;
