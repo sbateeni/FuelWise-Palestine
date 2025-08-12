@@ -79,7 +79,8 @@ export function RoutePlanner() {
                 title: "خطأ في السعر",
                 description: `لم نتمكن من العثور على سعر لنوع الوقود: ${data.fuelType}`,
             });
-            throw new Error(`لم نتمكن من العثور على سعر لنوع الوقود: ${data.fuelType}`);
+            setLoading(false);
+            return;
         }
 
         const result = await getRouteAndTips(data, price);
@@ -142,8 +143,8 @@ export function RoutePlanner() {
                 fuelType: profile.fuelType || (priceKeys.length > 0 ? priceKeys[0] : ''),
               };
               form.reset(newValues);
-              // Automatically fetch directions if a profile exists
-              getDirections(newValues);
+              // Do not auto-fetch on load, let the user click the button.
+              // getDirections(newValues); 
             }
         }
       } catch (error) {
@@ -160,7 +161,8 @@ export function RoutePlanner() {
     return () => {
         isMounted = false;
     };
-  }, [getDirections, form, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   const fetchConsumption = async () => {
     const { manufacturer, model, year } = form.getValues();
