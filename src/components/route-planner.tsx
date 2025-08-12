@@ -8,7 +8,10 @@ import {
   Clock,
   Waypoints,
   Sparkles,
+  Fuel,
+  MapPin,
 } from "lucide-react";
+import { Suspense } from 'react';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +21,6 @@ import { getRouteAndTips } from "@/app/actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RouteInfo } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Suspense } from 'react';
 
 const Map = dynamic(() => import('@/components/map'), { 
     ssr: false,
@@ -197,31 +199,69 @@ export default function RoutePlanner() {
                 </CardContent>
             </Card>
              {(loading || routeInfo) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Sparkles className="ml-2" />
-                  نصائح ذكية للسفر
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading && !routeInfo ? (
-                  <div className="space-y-2">
-                    <div className="h-4 bg-muted rounded w-full"></div>
-                    <div className="h-4 bg-muted rounded w-5/6"></div>
-                    <div className="h-4 bg-muted rounded w-full"></div>
-                    <div className="h-4 bg-muted rounded w-4/6"></div>
-                  </div>
-                ) : routeInfo ? (
-                  <ScrollArea className="h-40 pr-4">
-                    <div
-                      className="whitespace-pre-wrap font-body text-sm leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: routeInfo.tips }}
-                    />
-                  </ScrollArea>
-                ) : null}
-              </CardContent>
-            </Card>
+                <div className="flex flex-col gap-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center">
+                            <Sparkles className="ml-2" />
+                            نصائح ذكية للسفر
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {loading && !routeInfo ? (
+                            <div className="space-y-2">
+                                <div className="h-4 bg-muted rounded w-full"></div>
+                                <div className="h-4 bg-muted rounded w-5/6"></div>
+                                <div className="h-4 bg-muted rounded w-full"></div>
+                                <div className="h-4 bg-muted rounded w-4/6"></div>
+                            </div>
+                            ) : routeInfo ? (
+                            <ScrollArea className="h-40 pr-4">
+                                <div
+                                className="whitespace-pre-wrap font-body text-sm leading-relaxed"
+                                dangerouslySetInnerHTML={{ __html: routeInfo.tips }}
+                                />
+                            </ScrollArea>
+                            ) : null}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center">
+                                <Fuel className="ml-2" />
+                                محطات وقود على الطريق
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                             {loading && !routeInfo ? (
+                                 <div className="space-y-4">
+                                    <div className="h-8 bg-muted rounded w-full"></div>
+                                    <div className="h-8 bg-muted rounded w-full"></div>
+                                    <div className="h-8 bg-muted rounded w-full"></div>
+                                 </div>
+                             ) : routeInfo && routeInfo.gasStations.length > 0 ? (
+                                <ScrollArea className="h-40 pr-4">
+                                    <ul className="space-y-3">
+                                        {routeInfo.gasStations.map((station, index) => (
+                                            <li key={index} className="flex items-center p-2 bg-secondary/30 rounded-md">
+                                                <Fuel className="w-5 h-5 ml-3 text-primary" />
+                                                <div>
+                                                    <p className="font-semibold">{station.name}</p>
+                                                    <p className="text-sm text-muted-foreground flex items-center">
+                                                        <MapPin className="w-3 h-3 ml-1" />
+                                                        {station.location}
+                                                    </p>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </ScrollArea>
+                             ) : (
+                                <p className="text-muted-foreground">لا توجد محطات وقود مقترحة لهذا المسار.</p>
+                             )}
+                        </CardContent>
+                    </Card>
+                </div>
              )}
         </div>
       </div>

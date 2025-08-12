@@ -5,6 +5,7 @@ import { suggestPlaces } from '@/ai/flows/places-autocomplete';
 import type { FuelCostFormValues, CalculationResult, RouteInfo, RouteRequest } from '@/lib/types';
 import { getGeocode } from '@/ai/flows/geocode';
 import { getTravelTips } from '@/ai/flows/travel-tips';
+import { getGasStations } from '@/ai/flows/gas-stations';
 
 
 export async function calculateFuelCost(
@@ -29,7 +30,7 @@ export async function calculateFuelCost(
 
     // 3. Calculate fuel needed and total cost
     const fuelNeeded = (distanceKm / 100) * consumption;
-    const totalCost = fuelNeeded * fuelPrice;
+    const totalCost = fuelNeeded * fuelNeeded;
 
     const result: CalculationResult = {
       distanceKm: parseFloat(distanceKm.toFixed(2)),
@@ -101,13 +102,15 @@ export async function getRouteAndTips(
     // 4. Get GeoJSON geometry for the map
     const routeGeometry = route.geometry;
 
-    // 5. Get travel tips from Gemini in parallel
+    // 5. Get travel tips and gas stations from Gemini in parallel
     const tipsPromise = getTravelTips({
       start: req.start,
       end: req.end,
       distance: distanceKm,
       duration: durationFormatted,
     });
+    const gasStationsPromise = getGasStations({ start: req.start, end: req.end });
+
 
     // 6. Format steps
     const steps = leg.steps.map((step: any) => ({
@@ -116,8 +119,9 @@ export async function getRouteAndTips(
     }));
 
     // 7. Await tips and assemble response
-    const tipsResponse = await tipsPromise;
+    const [tipsResponse, gasStationsResponse] = await Promise.all([tipsPromise, gasStationsPromise]);
     const tips = tipsResponse.tips.replace(/\*/g, '•'); // Replace asterisks with bullets for better display
+    const gasStations = gasStationsResponse.stations;
 
     const routeInfo: RouteInfo = {
       distance: distanceKm,
@@ -125,6 +129,7 @@ export async function getRouteAndTips(
       steps,
       tips,
       routeGeometry,
+      gasStations,
     };
 
     return { success: true, data: routeInfo };

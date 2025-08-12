@@ -25,6 +25,11 @@ export interface RouteRequest {
     end: string;
 }
 
+export interface GasStation {
+    name: string;
+    location: string;
+}
+
 export interface RouteInfo {
     distance: string;
     duration: string;
@@ -34,4 +39,5 @@ export interface RouteInfo {
     }>;
     tips: string;
     routeGeometry: GeoJsonObject;
+    gasStations: GasStation[];
 }
