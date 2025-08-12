@@ -192,7 +192,7 @@ export function RoutePlanner() {
         const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
         toast({
             variant: "destructive",
-            title: "Error",
+            title: "Error fetching consumption",
             description: errorMessage,
         });
     } finally {
@@ -273,7 +273,7 @@ export function RoutePlanner() {
                       <FormItem>
                         <FormLabel><Layers3 className="inline-block me-1 h-4 w-4" /> Vehicle Class</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select vehicle class" /></SelectValue></SelectTrigger></FormControl>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select vehicle class" /></SelectTrigger></FormControl>
                           <SelectContent>
                             {vehicleClasses.map((vc) => (<SelectItem key={vc} value={vc}>{vc}</SelectItem>))}
                           </SelectContent>
@@ -287,7 +287,7 @@ export function RoutePlanner() {
                       <FormItem>
                         <FormLabel><Fuel className="inline-block me-1 h-4 w-4" /> Fuel Type</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Select fuel type" /></SelectValue></SelectTrigger></FormControl>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Select fuel type" /></SelectTrigger></FormControl>
                           <SelectContent>
                             {fuelTypes.map((ft) => (<SelectItem key={ft} value={ft}>{ft}</SelectItem>))}
                           </SelectContent>
@@ -421,3 +421,5 @@ export function RoutePlanner() {
     </div>
   );
 }
+
+    
