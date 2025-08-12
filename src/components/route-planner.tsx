@@ -151,7 +151,7 @@ export function RoutePlanner() {
     } finally {
         setLoading(false);
     }
-  }, [toast]);
+  }, [toast, form]);
 
   const fetchConsumption = async () => {
     const { manufacturer, model, year } = form.getValues();
