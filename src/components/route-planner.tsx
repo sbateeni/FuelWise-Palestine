@@ -81,8 +81,7 @@ export function RoutePlanner() {
             setFuelTypes(priceKeys);
 
             if (profile) {
-              const newValues: FuelCostFormValues = {
-                ...form.getValues(),
+              const newValues: Partial<FuelCostFormValues> = {
                 manufacturer: profile.manufacturer,
                 model: profile.model,
                 year: profile.year,
@@ -90,16 +89,20 @@ export function RoutePlanner() {
                 consumption: profile.consumption,
                 fuelType: profile.fuelType || (priceKeys.length > 0 ? priceKeys[0] : ''),
               };
-              form.reset(newValues);
+              form.reset({ ...form.getValues(), ...newValues });
+            } else if (priceKeys.length > 0) {
+              form.setValue('fuelType', priceKeys[0]);
             }
         }
       } catch (error) {
         console.error("Failed to load initial data from DB", error);
-        toast({
-          variant: "destructive",
-          title: "خطأ في التحميل",
-          description: "لم نتمكن من تحميل البيانات المحفوظة.",
-        });
+        if (isMounted) {
+            toast({
+              variant: "destructive",
+              title: "خطأ في التحميل",
+              description: "لم نتمكن من تحميل البيانات المحفوظة.",
+            });
+        }
       }
     }
     loadInitialData();
@@ -158,7 +161,7 @@ export function RoutePlanner() {
     } finally {
         setLoading(false);
     }
-  }, [toast, form]);
+  }, [toast]);
 
   const fetchConsumption = React.useCallback(async () => {
     const { manufacturer, model, year } = form.getValues();
