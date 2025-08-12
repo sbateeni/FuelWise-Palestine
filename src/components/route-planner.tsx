@@ -8,7 +8,6 @@ import {
   Waypoints,
   Sparkles,
 } from "lucide-react";
-import dynamic from "next/dynamic";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,16 +16,14 @@ import { Label } from "@/components/ui/label";
 import { getRouteAndTips } from "@/app/actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RouteInfo } from "@/lib/types";
+import Map from "@/components/map";
 
-// Dynamically import the map to avoid SSR issues with Leaflet
-const Map = dynamic(() => import("@/components/map"), {
-  ssr: false,
-  loading: () => (
+const MapLoadingSkeleton = () => (
     <div className="h-96 w-full rounded-lg shadow-inner border bg-muted flex items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
-  ),
-});
+);
+
 
 export default function RoutePlanner() {
   const [start, setStart] = React.useState("رام الله");
@@ -35,8 +32,8 @@ export default function RoutePlanner() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const getDirections = async () => {
-    if (!start || !end) {
+  const getDirections = React.useCallback(async (startPoint: string, endPoint: string) => {
+    if (!startPoint || !endPoint) {
       setError("الرجاء إدخال نقطة البداية والوصول.");
       return;
     }
@@ -45,7 +42,7 @@ export default function RoutePlanner() {
     setError(null);
 
     try {
-      const result = await getRouteAndTips({ start, end });
+      const result = await getRouteAndTips({ start: startPoint, end: endPoint });
       if (result.success) {
         setRouteInfo(result.data);
       } else {
@@ -57,11 +54,15 @@ export default function RoutePlanner() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const handleGetDirectionsClick = () => {
+    getDirections(start, end);
+  }
 
   // Fetch initial route on component mount
   React.useEffect(() => {
-    getDirections();
+    getDirections("رام الله", "نابلس");
      // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -110,7 +111,7 @@ export default function RoutePlanner() {
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
-                onClick={getDirections}
+                onClick={handleGetDirectionsClick}
                 disabled={loading}
                 className="w-full"
               >
@@ -122,7 +123,9 @@ export default function RoutePlanner() {
         </div>
 
         <div className="lg:col-span-8">
-          <Map route={routeInfo?.routeGeometry} />
+          {typeof window !== 'undefined' ? 
+            <Map route={routeInfo?.routeGeometry} /> : <MapLoadingSkeleton />
+          }
         </div>
       </div>
 
