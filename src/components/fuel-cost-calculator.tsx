@@ -33,15 +33,17 @@ const AutocompleteInput = ({
   const [suggestions, setSuggestions] = React.useState<string[]>([])
   const [loading, setLoading] = React.useState(false)
   const [open, setOpen] = React.useState(false)
-  const value = form.watch(name);
+  
+  // We use a local state to control the input value for immediate feedback
+  const [inputValue, setInputValue] = React.useState(form.getValues(name) || "");
 
-  const handleInputChange = React.useCallback(
-    async (inputValue: string) => {
-      if (inputValue.length > 1) {
+  const handleSuggestionsFetch = React.useCallback(
+    async (value: string) => {
+      if (value.length > 1) {
         setLoading(true)
         setOpen(true)
         try {
-            const result = await getPlaceSuggestions(inputValue)
+            const result = await getPlaceSuggestions(value)
             setSuggestions(result)
         } catch (e) {
             setSuggestions([])
@@ -57,21 +59,22 @@ const AutocompleteInput = ({
   );
 
   const debouncedFetch = React.useCallback(
-    (inputValue: string) => {
+    (value: string) => {
       const handler = setTimeout(() => {
-        handleInputChange(inputValue)
+        handleSuggestionsFetch(value)
       }, 300)
 
       return () => clearTimeout(handler)
     },
-    [handleInputChange]
+    [handleSuggestionsFetch]
   );
-
-  React.useEffect(() => {
-    if (value) {
-      debouncedFetch(value)
-    }
-  }, [value, debouncedFetch]);
+  
+  const handleLocalInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputValue(value);
+    form.setValue(name, value, { shouldValidate: true, shouldDirty: true });
+    debouncedFetch(value);
+  }
 
   return (
     <FormField
@@ -89,6 +92,8 @@ const AutocompleteInput = ({
                 <Input
                   placeholder={placeholder}
                   {...field}
+                  value={inputValue}
+                  onChange={handleLocalInputChange}
                   autoComplete="off"
                 />
               </FormControl>
@@ -111,6 +116,7 @@ const AutocompleteInput = ({
                       className="justify-start text-right"
                       onClick={() => {
                         form.setValue(name, suggestion)
+                        setInputValue(suggestion)
                         setOpen(false)
                       }}
                     >
@@ -119,7 +125,7 @@ const AutocompleteInput = ({
                   ))}
                 </div>
               ) : (
-                !loading && value && value.length > 1 && <div className="p-2 text-sm text-muted-foreground">
+                !loading && inputValue && inputValue.length > 1 && <div className="p-2 text-sm text-muted-foreground">
                   لا توجد نتائج
                 </div>
               )}
