@@ -3,7 +3,6 @@
 import { getGeocode } from '@/ai/flows/geocode';
 import { getTravelTips } from '@/ai/flows/travel-tips';
 import { getGasStations } from '@/ai/flows/gas-stations';
-import { getFuelPrice } from '@/lib/db';
 import type { RouteInfo, FuelCostFormValues } from '@/lib/types';
 
 
@@ -21,9 +20,10 @@ export async function getPlaceSuggestions(query: string): Promise<string[]> {
     }
 }
 
-
+// The fuelPrice is now passed as an argument instead of being fetched here
 export async function getRouteAndTips(
-  req: FuelCostFormValues
+  req: FuelCostFormValues,
+  fuelPrice: number | null
 ): Promise<{ success: true; data: RouteInfo } | { success: false; error: string }> {
   try {
     const [startGeocode, endGeocode] = await Promise.all([
@@ -42,12 +42,14 @@ export async function getRouteAndTips(
     const osrmResponse = await fetch(osrmUrl);
     if (!osrmResponse.ok) {
         const errorBody = await osrmResponse.text();
+        // Return the actual error from OSRM for better debugging
         return { success: false, error: `فشل في حساب المسار من OSRM: ${osrmResponse.status} ${errorBody}` };
     }
     const osrmData = await osrmResponse.json();
 
     if (osrmData.code !== 'Ok' || !osrmData.routes?.[0]) {
-      return { success: false, error: `لم يتم العثور على مسار بين النقطتين: ${osrmData.message}` };
+      // Return the actual message from OSRM
+      return { success: false, error: `لم يتم العثور على مسار بين النقطتين: ${osrmData.message || 'لا يوجد مسار متاح.'}` };
     }
 
     const route = osrmData.routes[0];
@@ -67,20 +69,21 @@ export async function getRouteAndTips(
       duration: durationFormatted,
     });
     const gasStationsPromise = getGasStations({ start: req.start, end: req.end });
-    const fuelPricePromise = getFuelPrice(req.fuelType);
 
     const steps = leg.steps.map((step: any) => ({
       instruction: step.maneuver.instruction,
       distance: `${(step.distance / 1000).toFixed(1)} كم`,
     }));
 
-    const [tipsResponse, gasStationsResponse, fuelPrice] = await Promise.all([tipsPromise, gasStationsPromise, fuelPricePromise]);
+    const [tipsResponse, gasStationsResponse] = await Promise.all([tipsPromise, gasStationsPromise]);
     
-    const tips = tipsResponse.tips.replace(/\*/g, '•');
+    // Use String() to ensure we have a string and then replace
+    const tips = String(tipsResponse.tips || '').replace(/\*/g, '•');
     const gasStations = gasStationsResponse.stations;
 
     let costResult;
-    if (fuelPrice) {
+    // Check if fuelPrice is a valid number
+    if (fuelPrice !== null && !isNaN(fuelPrice)) {
         const fuelNeeded = (distanceKmRaw / 100) * req.consumption;
         const totalCost = fuelNeeded * fuelPrice;
         costResult = {
@@ -102,9 +105,8 @@ export async function getRouteAndTips(
     return { success: true, data: routeInfo };
   } catch (error) {
     console.error('Error in getRouteAndTips:', error);
+    // Return the actual error message for better client-side debugging
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return { success: false, error: errorMessage };
+    return { success: false, error: `حدث خطأ غير متوقع في الخادم: ${errorMessage}` };
   }
 }
-
-    

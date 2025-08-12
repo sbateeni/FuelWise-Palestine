@@ -40,7 +40,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RouteInfo, FuelCostFormValues, VehicleProfile } from "@/lib/types";
 import { fuelCostSchema } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { getAllFuelPrices, getVehicleProfile, saveVehicleProfile } from "@/lib/db";
+import { getAllFuelPrices, getVehicleProfile, saveVehicleProfile, getFuelPrice } from "@/lib/db";
 import { Separator } from "./ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import Map from './map';
@@ -100,38 +100,57 @@ export function RoutePlanner() {
     }
     loadInitialData();
      // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [toast]);
+  }, []);
   
 
   const getDirections = React.useCallback(async (data: FuelCostFormValues) => {
     setLoading(true);
     setRouteInfo(null);
 
-    const result = await getRouteAndTips(data);
-    if (result.success) {
-      setRouteInfo(result.data);
-      // Save vehicle profile on successful calculation
-      const vehicleProfile: VehicleProfile = {
-        manufacturer: data.manufacturer,
-        model: data.model,
-        year: data.year,
-        vehicleClass: data.vehicleClass,
-        consumption: data.consumption,
-        fuelType: data.fuelType,
-      };
-      await saveVehicleProfile(vehicleProfile);
-      toast({
-        title: "تم حفظ المركبة",
-        description: "تم حفظ بيانات مركبتك للاستخدام المستقبلي.",
-      });
-    } else {
-      toast({
-        variant: "destructive",
-        title: "خطأ",
-        description: result.error,
-      });
+    try {
+        // Fetch fuel price on the client side
+        const price = await getFuelPrice(data.fuelType);
+        if (price === undefined) {
+            throw new Error(`لم نتمكن من العثور على سعر لنوع الوقود: ${data.fuelType}`);
+        }
+
+        const result = await getRouteAndTips(data, price);
+        
+        if (result.success) {
+            setRouteInfo(result.data);
+            // Save vehicle profile on successful calculation
+            const vehicleProfile: VehicleProfile = {
+                manufacturer: data.manufacturer,
+                model: data.model,
+                year: data.year,
+                vehicleClass: data.vehicleClass,
+                consumption: data.consumption,
+                fuelType: data.fuelType,
+            };
+            await saveVehicleProfile(vehicleProfile);
+            toast({
+                title: "تم حفظ المركبة",
+                description: "تم حفظ بيانات مركبتك للاستخدام المستقبلي.",
+            });
+        } else {
+            // Display the detailed error from the server
+            toast({
+                variant: "destructive",
+                title: "خطأ في حساب المسار",
+                description: result.error,
+            });
+        }
+    } catch (error) {
+        // Display any other client-side or unexpected errors
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        toast({
+            variant: "destructive",
+            title: "خطأ",
+            description: errorMessage,
+        });
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
   }, [toast]);
 
   const fetchConsumption = async () => {
@@ -254,7 +273,7 @@ export function RoutePlanner() {
                       <FormItem>
                         <FormLabel><Layers3 className="inline-block ml-1 h-4 w-4" /> فئة المركبة</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="اختر فئة المركبة" /></SelectTrigger></FormControl>
+                          <FormControl><SelectTrigger><SelectValue placeholder="اختر فئة المركبة" /></SelectValue></SelectTrigger></FormControl>
                           <SelectContent>
                             {vehicleClasses.map((vc) => (<SelectItem key={vc} value={vc}>{vc}</SelectItem>))}
                           </SelectContent>
