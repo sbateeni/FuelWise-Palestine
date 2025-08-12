@@ -42,7 +42,8 @@ export async function calculateFuelCost(
     return { success: true, result };
   } catch (error) {
     console.error('Error in calculateFuelCost:', error);
-    return { success: false, error: 'حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.' };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
   }
 }
 
