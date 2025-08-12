@@ -32,7 +32,7 @@ export async function getRouteAndTips(
     ]);
 
     if (!startGeocode?.latitude || !endGeocode?.latitude) {
-      return { success: false, error: 'لم نتمكن من تحديد مواقع البداية أو النهاية.' };
+      return { success: false, error: 'Could not determine start or end locations.' };
     }
 
     const startCoords = `${startGeocode.longitude},${startGeocode.latitude}`;
@@ -43,22 +43,22 @@ export async function getRouteAndTips(
     if (!osrmResponse.ok) {
         const errorBody = await osrmResponse.text();
         // Return the actual error from OSRM for better debugging
-        return { success: false, error: `فشل في حساب المسار من OSRM: ${osrmResponse.status} ${errorBody}` };
+        return { success: false, error: `Failed to calculate route from OSRM: ${osrmResponse.status} ${errorBody}` };
     }
     const osrmData = await osrmResponse.json();
 
     if (osrmData.code !== 'Ok' || !osrmData.routes?.[0]) {
       // Return the actual message from OSRM
-      return { success: false, error: `لم يتم العثور على مسار بين النقطتين: ${osrmData.message || 'لا يوجد مسار متاح.'}` };
+      return { success: false, error: `No route found between the points: ${osrmData.message || 'No available route.'}` };
     }
 
     const route = osrmData.routes[0];
     const leg = route.legs[0];
     const distanceKmRaw = leg.distance / 1000;
 
-    const distanceKm = distanceKmRaw.toFixed(1) + ' كم';
+    const distanceKm = distanceKmRaw.toFixed(1) + ' km';
     const durationMinutes = Math.round(leg.duration / 60);
-    const durationFormatted = `${Math.floor(durationMinutes / 60)} س ${durationMinutes % 60} د`;
+    const durationFormatted = `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m`;
     
     const routeGeometry = route.geometry;
 
@@ -72,7 +72,7 @@ export async function getRouteAndTips(
 
     const steps = leg.steps.map((step: any) => ({
       instruction: step.maneuver.instruction,
-      distance: `${(step.distance / 1000).toFixed(1)} كم`,
+      distance: `${(step.distance / 1000).toFixed(1)} km`,
     }));
 
     const [tipsResponse, gasStationsResponse] = await Promise.all([tipsPromise, gasStationsPromise]);
@@ -107,6 +107,6 @@ export async function getRouteAndTips(
     console.error('Error in getRouteAndTips:', error);
     // Return the actual error message for better client-side debugging
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return { success: false, error: `حدث خطأ غير متوقع في الخادم: ${errorMessage}` };
+    return { success: false, error: `An unexpected server error occurred: ${errorMessage}` };
   }
 }

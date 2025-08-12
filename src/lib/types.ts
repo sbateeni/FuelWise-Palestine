@@ -2,14 +2,14 @@ import { z } from 'zod';
 import type { GeoJsonObject } from 'geojson';
 
 export const fuelCostSchema = z.object({
-  start: z.string().min(2, { message: "يجب إدخال نقطة انطلاق صالحة." }),
-  end: z.string().min(2, { message: "يجب إدخال نقطة وصول صالحة." }),
-  manufacturer: z.string().min(2, { message: "يجب إدخال الشركة المصنّعة." }),
-  model: z.string().min(2, { message: "يجب إدخال طراز المركبة." }),
-  year: z.coerce.number().min(1980, { message: "يجب أن تكون سنة التصنيع بعد 1980." }).max(new Date().getFullYear() + 1, { message: `لا يمكن أن تكون سنة التصنيع في المستقبل.` }),
-  vehicleClass: z.string({ required_error: "الرجاء اختيار فئة المركبة." }),
-  fuelType: z.string({ required_error: "الرجاء اختيار نوع الوقود." }),
-  consumption: z.coerce.number().positive({ message: "يجب أن يكون الاستهلاك رقمًا موجبًا." }),
+  start: z.string().min(2, { message: "Must enter a valid starting point." }),
+  end: z.string().min(2, { message: "Must enter a valid destination." }),
+  manufacturer: z.string().min(2, { message: "Manufacturer is required." }),
+  model: z.string().min(2, { message: "Model is required." }),
+  year: z.coerce.number().min(1980, { message: "Year must be after 1980." }).max(new Date().getFullYear() + 1, { message: `Year cannot be in the future.` }),
+  vehicleClass: z.string({ required_error: "Please select a vehicle class." }),
+  fuelType: z.string({ required_error: "Please select a fuel type." }),
+  consumption: z.coerce.number().positive({ message: "Consumption must be a positive number." }),
 });
 
 export type FuelCostFormValues = z.infer<typeof fuelCostSchema>;
@@ -55,5 +55,3 @@ export interface VehicleProfile {
   consumption: number;
   fuelType: string;
 }
-
-    

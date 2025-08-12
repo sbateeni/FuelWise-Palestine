@@ -19,9 +19,9 @@ interface FuelWiseDB extends DBSchema {
 }
 
 const defaultPrices: { [key: string]: number } = {
-  "بنزين 95": 6.94,
-  "بنزين 98": 7.85,
-  "سولار": 6.16,
+  "Gasoline 95": 6.94,
+  "Gasoline 98": 7.85,
+  "Diesel": 6.16,
 };
 
 export async function getDB() {
@@ -55,7 +55,7 @@ export async function getAllFuelPrices(): Promise<{ [key: string]: number }> {
     try {
         const tx = db.transaction(FUEL_PRICES_STORE, 'readonly');
         const store = tx.objectStore(FUEL_PRICES_STORE);
-        const keys = await store.getAllKeys();
+        const keys = await store.getAllKeys() as string[]; // Cast keys to string array
         const values = await store.getAll();
         await tx.done;
 
@@ -72,6 +72,20 @@ export async function getAllFuelPrices(): Promise<{ [key: string]: number }> {
         keys.forEach((key, index) => {
             prices[key] = values[index];
         });
+        
+        // Check if default prices keys are in the db, if not, add them
+        const writeTx = db.transaction(FUEL_PRICES_STORE, 'readwrite');
+        const writeStore = writeTx.objectStore(FUEL_PRICES_STORE);
+        let updated = false;
+        for (const key in defaultPrices) {
+            if (!prices.hasOwnProperty(key)) {
+                await writeStore.put(defaultPrices[key], key);
+                prices[key] = defaultPrices[key];
+                updated = true;
+            }
+        }
+        if(updated) await writeTx.done;
+
         return prices;
     } catch (error) {
         console.warn("Could not get fuel prices, falling back to default. This may happen if the store was just created.", error);

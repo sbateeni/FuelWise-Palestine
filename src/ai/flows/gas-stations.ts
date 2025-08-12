@@ -37,7 +37,7 @@ const prompt = ai.definePrompt({
         You are a helpful travel assistant for Palestine.
         List up to 5 major gas stations on the main roads for a car journey from {{{start}}} to {{{end}}}.
         
-        Provide the answer in Arabic.
+        Provide the answer in English.
         Return ONLY a JSON object.
       `,
 });

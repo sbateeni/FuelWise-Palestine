@@ -44,7 +44,7 @@ const prompt = ai.definePrompt({
         - The best time to travel to avoid traffic
         - Any general safety or travel advice for this specific route.
         
-        Provide the answer in Arabic, using clear, concise points. Format the output as a single string. Use markdown for formatting like bolding and lists. Use \\n for newlines.
+        Provide the answer in English, using clear, concise points. Format the output as a single string. Use markdown for formatting like bolding and lists. Use \\n for newlines.
       `,
 });
 

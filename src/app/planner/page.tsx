@@ -6,7 +6,7 @@ export default function PlannerPage() {
             <div className="w-full max-w-7xl">
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold font-headline text-primary">FuelWise Palestine</h1>
-                    <p className="text-muted-foreground mt-2 text-lg">خطط لرحلاتك في فلسطين بذكاء وكفاءة</p>
+                    <p className="text-muted-foreground mt-2 text-lg">Plan your trips in Palestine smartly and efficiently.</p>
                 </div>
                 <RoutePlanner />
             </div>
