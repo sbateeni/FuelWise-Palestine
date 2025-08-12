@@ -34,19 +34,22 @@ const AutocompleteInput = ({
   const [loading, setLoading] = React.useState(false)
   const [open, setOpen] = React.useState(false)
   
-  // We use a local state to control the input value for immediate feedback
   const [inputValue, setInputValue] = React.useState(form.getValues(name) || "");
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+
 
   const handleSuggestionsFetch = React.useCallback(
     async (value: string) => {
       if (value.length > 1) {
         setLoading(true)
-        setOpen(true)
         try {
             const result = await getPlaceSuggestions(value)
             setSuggestions(result)
+            if (result.length > 0) setOpen(true);
+            else setOpen(false);
         } catch (e) {
             setSuggestions([])
+            setOpen(false)
         } finally {
             setLoading(false)
         }
@@ -87,13 +90,19 @@ const AutocompleteInput = ({
             {label}
           </FormLabel>
           <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
+            <PopoverTrigger asChild ref={triggerRef}>
               <FormControl>
                 <Input
                   placeholder={placeholder}
                   {...field}
                   value={inputValue}
                   onChange={handleLocalInputChange}
+                  onClick={() => {
+                     // Manually trigger popover on click to avoid focus issues
+                     if (suggestions.length > 0) {
+                        setOpen(true);
+                     }
+                  }}
                   autoComplete="off"
                 />
               </FormControl>
@@ -101,6 +110,7 @@ const AutocompleteInput = ({
             <PopoverContent 
               className="w-[--radix-popover-trigger-width] p-0" 
               align="start"
+              onOpenAutoFocus={(e) => e.preventDefault()}
             >
               {loading ? (
                 <div className="p-2 text-sm text-muted-foreground flex items-center">
