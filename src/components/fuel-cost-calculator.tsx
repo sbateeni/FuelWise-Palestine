@@ -33,13 +33,14 @@ const AutocompleteInput = ({
   const [suggestions, setSuggestions] = React.useState<string[]>([])
   const [loading, setLoading] = React.useState(false)
   const [open, setOpen] = React.useState(false)
+  const value = form.watch(name);
 
   const handleInputChange = React.useCallback(
-    async (value: string) => {
-      if (value.length > 1) {
+    async (inputValue: string) => {
+      if (inputValue.length > 1) {
         setLoading(true)
         try {
-            const result = await getPlaceSuggestions(value)
+            const result = await getPlaceSuggestions(inputValue)
             setSuggestions(result)
             setOpen(result.length > 0)
         } catch (e) {
@@ -54,18 +55,25 @@ const AutocompleteInput = ({
       }
     },
     []
-  )
+  );
 
   const debouncedFetch = React.useCallback(
-    (value: string) => {
+    (inputValue: string) => {
       const handler = setTimeout(() => {
-        handleInputChange(value)
+        handleInputChange(inputValue)
       }, 300)
 
       return () => clearTimeout(handler)
     },
     [handleInputChange]
-  )
+  );
+
+  React.useEffect(() => {
+    if (value) {
+      debouncedFetch(value)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   return (
     <FormField
@@ -83,10 +91,6 @@ const AutocompleteInput = ({
                 <Input
                   placeholder={placeholder}
                   {...field}
-                  onChange={(e) => {
-                    field.onChange(e)
-                    debouncedFetch(e.target.value)
-                  }}
                   autoComplete="off"
                 />
               </FormControl>
@@ -117,8 +121,8 @@ const AutocompleteInput = ({
         </FormItem>
       )}
     />
-  )
-}
+  );
+};
 
 
 export function FuelCostCalculator() {
