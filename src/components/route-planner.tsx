@@ -68,49 +68,17 @@ export function RoutePlanner() {
     },
   });
 
-  React.useEffect(() => {
-    async function loadInitialData() {
-      try {
-        const [prices, profile] = await Promise.all([
-          getAllFuelPrices(),
-          getVehicleProfile()
-        ]);
-        
-        setFuelTypes(Object.keys(prices));
-
-        if (profile) {
-          form.reset({
-            ...form.getValues(),
-            manufacturer: profile.manufacturer,
-            model: profile.model,
-            year: profile.year,
-            vehicleClass: profile.vehicleClass,
-            consumption: profile.consumption,
-            fuelType: profile.fuelType || 'بنزين 95',
-          });
-        }
-      } catch (error) {
-        console.error("Failed to load initial data from DB", error);
-        toast({
-          variant: "destructive",
-          title: "خطأ في التحميل",
-          description: "لم نتمكن من تحميل البيانات المحفوظة.",
-        });
-      }
-    }
-    loadInitialData();
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
-
-  const getDirections = async (data: FuelCostFormValues) => {
+  const getDirections = React.useCallback(async (data: FuelCostFormValues) => {
     setLoading(true);
     setRouteInfo(null);
-
     try {
-        // Fetch fuel price on the client side
         const price = await getFuelPrice(data.fuelType);
         if (price === undefined) {
+            toast({
+                variant: "destructive",
+                title: "خطأ في السعر",
+                description: `لم نتمكن من العثور على سعر لنوع الوقود: ${data.fuelType}`,
+            });
             throw new Error(`لم نتمكن من العثور على سعر لنوع الوقود: ${data.fuelType}`);
         }
 
@@ -118,7 +86,6 @@ export function RoutePlanner() {
         
         if (result.success) {
             setRouteInfo(result.data);
-            // Save vehicle profile on successful calculation
             const vehicleProfile: VehicleProfile = {
                 manufacturer: data.manufacturer,
                 model: data.model,
@@ -133,7 +100,6 @@ export function RoutePlanner() {
                 description: "تم حفظ بيانات مركبتك للاستخدام المستقبلي.",
             });
         } else {
-            // Display the detailed error from the server
             toast({
                 variant: "destructive",
                 title: "خطأ في حساب المسار",
@@ -141,7 +107,6 @@ export function RoutePlanner() {
             });
         }
     } catch (error) {
-        // Display any other client-side or unexpected errors
         const errorMessage = error instanceof Error ? error.message : String(error);
         toast({
             variant: "destructive",
@@ -151,8 +116,52 @@ export function RoutePlanner() {
     } finally {
         setLoading(false);
     }
-  };
+  }, [toast, form]);
 
+  React.useEffect(() => {
+    let isMounted = true;
+    async function loadInitialData() {
+      try {
+        const [prices, profile] = await Promise.all([
+          getAllFuelPrices(),
+          getVehicleProfile()
+        ]);
+        
+        if (isMounted) {
+            const priceKeys = Object.keys(prices);
+            setFuelTypes(priceKeys);
+
+            if (profile) {
+              const newValues: FuelCostFormValues = {
+                ...form.getValues(),
+                manufacturer: profile.manufacturer,
+                model: profile.model,
+                year: profile.year,
+                vehicleClass: profile.vehicleClass,
+                consumption: profile.consumption,
+                fuelType: profile.fuelType || (priceKeys.length > 0 ? priceKeys[0] : ''),
+              };
+              form.reset(newValues);
+              // Automatically fetch directions if a profile exists
+              getDirections(newValues);
+            }
+        }
+      } catch (error) {
+        console.error("Failed to load initial data from DB", error);
+        toast({
+          variant: "destructive",
+          title: "خطأ في التحميل",
+          description: "لم نتمكن من تحميل البيانات المحفوظة.",
+        });
+      }
+    }
+    loadInitialData();
+
+    return () => {
+        isMounted = false;
+    };
+  }, [getDirections, form, toast]);
+  
   const fetchConsumption = async () => {
     const { manufacturer, model, year } = form.getValues();
     if (!manufacturer || !model || !year) {
@@ -189,17 +198,7 @@ export function RoutePlanner() {
         setLoadingConsumption(false);
     }
   };
-
   
-  // Fetch initial route on component mount
-  React.useEffect(() => {
-    // Only fetch if vehicle data is available to make a calculation
-    if (form.getValues().manufacturer) {
-        getDirections(form.getValues());
-    }
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <div className="w-full mx-auto" dir="rtl">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
