@@ -287,7 +287,7 @@ export function RoutePlanner() {
                       <FormItem>
                         <FormLabel><Fuel className="inline-block ml-1 h-4 w-4" /> نوع الوقود</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="اختر نوع الوقود" /></SelectTrigger></FormControl>
+                          <FormControl><SelectTrigger><SelectValue placeholder="اختر نوع الوقود" /></SelectValue></SelectTrigger></FormControl>
                           <SelectContent>
                             {fuelTypes.map((ft) => (<SelectItem key={ft} value={ft}>{ft}</SelectItem>))}
                           </SelectContent>
