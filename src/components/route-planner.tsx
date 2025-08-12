@@ -1,6 +1,7 @@
 "use client";
 
-import *d React from "react";
+import * as React from "react";
+import dynamic from 'next/dynamic';
 import {
   Loader2,
   Navigation,
@@ -17,6 +18,12 @@ import { getRouteAndTips } from "@/app/actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RouteInfo } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+
+const Map = dynamic(() => import('@/components/map'), { 
+    ssr: false,
+    loading: () => <div className="h-full w-full bg-muted flex items-center justify-center"><p>جاري تحميل الخريطة...</p></div>
+});
+
 
 export default function RoutePlanner() {
   const [start, setStart] = React.useState("رام الله");
@@ -69,8 +76,9 @@ export default function RoutePlanner() {
         </CardHeader>
       </Card>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-1">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Input and Details Column */}
+        <div className="lg:col-span-1 flex flex-col gap-4">
           <Card>
             <CardHeader>
               <CardTitle>ادخل تفاصيل رحلتك</CardTitle>
@@ -116,10 +124,8 @@ export default function RoutePlanner() {
               </Button>
             </CardContent>
           </Card>
-        </div>
 
-        {(loading || routeInfo) && (
-          <div className="md:col-span-2 mt-4 md:mt-0 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {(loading || routeInfo) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -160,7 +166,7 @@ export default function RoutePlanner() {
                     <h3 className="font-bold pt-4 text-lg border-t mt-4">
                       خطوات الرحلة:
                     </h3>
-                    <ScrollArea className="h-60 pr-4">
+                    <ScrollArea className="h-40 pr-4">
                       <ol className="list-decimal list-inside space-y-3 text-sm">
                         {routeInfo.steps.map((step, index) => (
                           <li key={index}>
@@ -176,7 +182,18 @@ export default function RoutePlanner() {
                 ) : null}
               </CardContent>
             </Card>
+          )}
 
+        </div>
+
+        {/* Map and Tips Column */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+            <Card className="flex-grow min-h-[400px]">
+                <CardContent className="p-0 h-full w-full">
+                    <Map routeGeometry={routeInfo?.routeGeometry} />
+                </CardContent>
+            </Card>
+             {(loading || routeInfo) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -193,15 +210,17 @@ export default function RoutePlanner() {
                     <div className="h-4 bg-muted rounded w-4/6"></div>
                   </div>
                 ) : routeInfo ? (
-                  <div
-                    className="whitespace-pre-wrap font-body text-sm leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: routeInfo.tips }}
-                  />
+                  <ScrollArea className="h-40 pr-4">
+                    <div
+                      className="whitespace-pre-wrap font-body text-sm leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: routeInfo.tips }}
+                    />
+                  </ScrollArea>
                 ) : null}
               </CardContent>
             </Card>
-          </div>
-        )}
+             )}
+        </div>
       </div>
     </div>
   );
