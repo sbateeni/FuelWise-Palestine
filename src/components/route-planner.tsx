@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import dynamic from 'next/dynamic';
 import {
   Loader2,
   Navigation,
@@ -16,13 +15,14 @@ import {
   Gauge,
   Droplets,
   CircleDollarSign,
+  Save,
 } from "lucide-react";
 import { Suspense } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -34,7 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { getRouteAndTips, getPlaceSuggestions } from "@/app/actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { RouteInfo, FuelCostFormValues } from "@/lib/types";
+import type { RouteInfo, FuelCostFormValues, VehicleProfile } from "@/lib/types";
 import { fuelCostSchema } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -42,14 +42,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { getAllFuelPrices } from "@/lib/db";
+import { getAllFuelPrices, getVehicleProfile, saveVehicleProfile } from "@/lib/db";
 import { Separator } from "./ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-
-const Map = dynamic(() => import('@/components/map'), { 
-    ssr: false,
-    loading: () => <div className="h-full w-full bg-muted flex items-center justify-center"><p>جاري تحميل الخريطة...</p></div>
-});
+import Map from './map';
 
 const vehicleClasses = ["سيارة ركاب", "شاحنة صغيرة", "حافلة", "دراجة نارية"];
 
@@ -184,35 +180,52 @@ export function RoutePlanner() {
   const { toast } = useToast();
   const [fuelTypes, setFuelTypes] = React.useState<string[]>([]);
   
-  React.useEffect(() => {
-    async function loadFuelTypes() {
-      try {
-        const prices = await getAllFuelPrices();
-        setFuelTypes(Object.keys(prices));
-      } catch (error) {
-        console.error("Failed to load fuel prices from DB", error);
-        toast({
-          variant: "destructive",
-          title: "خطأ",
-          description: "لم نتمكن من تحميل أسعار الوقود.",
-        });
-      }
-    }
-    loadFuelTypes();
-  }, [toast]);
-
   const form = useForm<FuelCostFormValues>({
     resolver: zodResolver(fuelCostSchema),
     defaultValues: {
       start: "رام الله",
       end: "نابلس",
-      vehicleType: "VW Golf",
+      vehicleType: "",
       year: new Date().getFullYear(),
       vehicleClass: "سيارة ركاب",
       fuelType: "بنزين 95",
       consumption: 8,
     },
   });
+
+  React.useEffect(() => {
+    async function loadInitialData() {
+      try {
+        const [prices, profile] = await Promise.all([
+          getAllFuelPrices(),
+          getVehicleProfile()
+        ]);
+        
+        setFuelTypes(Object.keys(prices));
+
+        if (profile) {
+          form.reset({
+            ...form.getValues(),
+            vehicleType: profile.vehicleType,
+            year: profile.year,
+            vehicleClass: profile.vehicleClass,
+            consumption: profile.consumption,
+            fuelType: profile.fuelType || 'بنزين 95',
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load initial data from DB", error);
+        toast({
+          variant: "destructive",
+          title: "خطأ في التحميل",
+          description: "لم نتمكن من تحميل البيانات المحفوظة.",
+        });
+      }
+    }
+    loadInitialData();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
+  
 
   const getDirections = React.useCallback(async (data: FuelCostFormValues) => {
     setLoading(true);
@@ -221,6 +234,19 @@ export function RoutePlanner() {
     const result = await getRouteAndTips(data);
     if (result.success) {
       setRouteInfo(result.data);
+      // Save vehicle profile on successful calculation
+      const vehicleProfile: VehicleProfile = {
+        vehicleType: data.vehicleType,
+        year: data.year,
+        vehicleClass: data.vehicleClass,
+        consumption: data.consumption,
+        fuelType: data.fuelType,
+      };
+      await saveVehicleProfile(vehicleProfile);
+      toast({
+        title: "تم حفظ المركبة",
+        description: "تم حفظ بيانات مركبتك للاستخدام المستقبلي.",
+      });
     } else {
       toast({
         variant: "destructive",
@@ -233,7 +259,10 @@ export function RoutePlanner() {
   
   // Fetch initial route on component mount
   React.useEffect(() => {
-    getDirections(form.getValues());
+    // Only fetch if vehicle data is available to make a calculation
+    if (form.getValues().vehicleType) {
+        getDirections(form.getValues());
+    }
      // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -265,14 +294,14 @@ export function RoutePlanner() {
                     <FormField control={form.control} name="year" render={({ field }) => (
                       <FormItem>
                         <FormLabel><CalendarDays className="inline-block ml-1 h-4 w-4" /> سنة التصنيع</FormLabel>
-                        <FormControl><Input type="number" placeholder="مثال: 2022" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormControl><Input type="number" placeholder="مثال: 2022" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseInt(e.target.value, 10) || 0)} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
                     <FormField control={form.control} name="vehicleClass" render={({ field }) => (
                       <FormItem>
                         <FormLabel><Layers3 className="inline-block ml-1 h-4 w-4" /> فئة المركبة</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                           <FormControl><SelectTrigger><SelectValue placeholder="اختر فئة المركبة" /></SelectTrigger></FormControl>
                           <SelectContent>
                             {vehicleClasses.map((vc) => (<SelectItem key={vc} value={vc}>{vc}</SelectItem>))}
@@ -284,7 +313,7 @@ export function RoutePlanner() {
                     <FormField control={form.control} name="fuelType" render={({ field }) => (
                       <FormItem>
                         <FormLabel><Fuel className="inline-block ml-1 h-4 w-4" /> نوع الوقود</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                           <FormControl><SelectTrigger><SelectValue placeholder="اختر نوع الوقود" /></SelectTrigger></FormControl>
                           <SelectContent>
                             {fuelTypes.map((ft) => (<SelectItem key={ft} value={ft}>{ft}</SelectItem>))}
@@ -298,7 +327,7 @@ export function RoutePlanner() {
                     <FormField control={form.control} name="consumption" render={({ field }) => (
                       <FormItem>
                         <FormLabel><Gauge className="inline-block ml-1 h-4 w-4" /> معدل استهلاك الوقود (لتر / 100 كم)</FormLabel>
-                        <FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} /></FormControl>
+                        <FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -306,6 +335,7 @@ export function RoutePlanner() {
                   <Button type="submit" disabled={loading} className="w-full mt-4">
                     {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
                     {loading ? "جاري الحساب..." : "احسب المسار والتكلفة"}
+                    <Save className="mr-2 h-4 w-4" />
                   </Button>
                 </form>
               </Form>

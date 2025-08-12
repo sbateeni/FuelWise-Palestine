@@ -1,14 +1,21 @@
 import { openDB, DBSchema } from 'idb';
+import type { VehicleProfile } from './types';
 
 const DB_NAME = 'FuelWiseDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'fuelPrices';
+const DB_VERSION = 2; // Incremented version
+const FUEL_PRICES_STORE = 'fuelPrices';
+const VEHICLE_PROFILE_STORE = 'vehicleProfile';
+const VEHICLE_PROFILE_KEY = 'currentUserVehicle';
 
 interface FuelWiseDB extends DBSchema {
-  [STORE_NAME]: {
+  [FUEL_PRICES_STORE]: {
     key: string;
     value: number;
   };
+  [VEHICLE_PROFILE_STORE]: {
+    key: string;
+    value: VehicleProfile;
+  }
 }
 
 const defaultPrices: { [key: string]: number } = {
@@ -21,11 +28,14 @@ export async function getDB() {
   const db = await openDB<FuelWiseDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
-        const store = db.createObjectStore(STORE_NAME);
-        // Initialize with default prices
+        const fuelStore = db.createObjectStore(FUEL_PRICES_STORE);
         for (const [fuelType, price] of Object.entries(defaultPrices)) {
-          store.put(price, fuelType);
+          fuelStore.put(price, fuelType);
         }
+      }
+      if (oldVersion < 2) {
+        // Create the new store for vehicle profiles
+        db.createObjectStore(VEHICLE_PROFILE_STORE);
       }
     },
   });
@@ -34,13 +44,13 @@ export async function getDB() {
 
 export async function getFuelPrice(fuelType: string): Promise<number | undefined> {
   const db = await getDB();
-  return db.get(STORE_NAME, fuelType);
+  return db.get(FUEL_PRICES_STORE, fuelType);
 }
 
 export async function getAllFuelPrices(): Promise<{ [key: string]: number }> {
     const db = await getDB();
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
+    const tx = db.transaction(FUEL_PRICES_STORE, 'readonly');
+    const store = tx.objectStore(FUEL_PRICES_STORE);
     const keys = await store.getAllKeys();
     const values = await store.getAll();
     await tx.done;
@@ -51,6 +61,17 @@ export async function getAllFuelPrices(): Promise<{ [key: string]: number }> {
     });
     return prices;
 }
+
+export async function saveVehicleProfile(profile: VehicleProfile): Promise<void> {
+    const db = await getDB();
+    await db.put(VEHICLE_PROFILE_STORE, profile, VEHICLE_PROFILE_KEY);
+}
+
+export async function getVehicleProfile(): Promise<VehicleProfile | undefined> {
+    const db = await getDB();
+    return db.get(VEHICLE_PROFILE_STORE, VEHICLE_PROFILE_KEY);
+}
+
 
 // Ensure the database is initialized when the app loads
 getDB();

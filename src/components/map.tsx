@@ -2,47 +2,50 @@
 
 import { useEffect, useRef } from 'react';
 import type { GeoJsonObject } from 'geojson';
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-
 
 interface MapProps {
     routeGeometry?: GeoJsonObject;
 }
 
-const DefaultIcon = L.icon({
-    iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-    iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
-
-
 export default function Map({ routeGeometry }: MapProps) {
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<any | null>(null); // Using any for L.Map
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const routeLayerRef = useRef<L.GeoJSON | null>(null);
+  const routeLayerRef = useRef<any | null>(null); // Using any for L.GeoJSON
+  const LRef = useRef<any | null>(null); // To hold the Leaflet module
 
-  const center: L.LatLngTuple = [31.9466, 35.3027]; // Center of Palestine
+  const center: [number, number] = [31.9466, 35.3027]; // Center of Palestine
 
-  // Initialize map
   useEffect(() => {
-    if (mapContainerRef.current && !mapRef.current) {
-      mapRef.current = L.map(mapContainerRef.current, {
-        center: center,
-        zoom: 8,
-      });
+    // Dynamically import Leaflet only on the client side
+    import('leaflet').then(L => {
+      LRef.current = L;
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(mapRef.current);
-    }
-    
+      // Set up default icon
+      const DefaultIcon = L.icon({
+        iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+      });
+      L.Marker.prototype.options.icon = DefaultIcon;
+
+      // Initialize map
+      if (mapContainerRef.current && !mapRef.current) {
+        mapRef.current = L.map(mapContainerRef.current, {
+          center: center,
+          zoom: 8,
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(mapRef.current);
+      }
+    });
+
     // Cleanup on unmount
     return () => {
       if (mapRef.current) {
@@ -50,11 +53,12 @@ export default function Map({ routeGeometry }: MapProps) {
         mapRef.current = null;
       }
     };
-  }, [center]);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   // Update route GeoJSON layer
   useEffect(() => {
-    if (mapRef.current) {
+    if (mapRef.current && LRef.current) {
+        const L = LRef.current;
         // Remove old route layer if it exists
         if (routeLayerRef.current) {
             routeLayerRef.current.remove();

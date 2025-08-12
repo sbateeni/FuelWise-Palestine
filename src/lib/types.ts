@@ -45,3 +45,11 @@ export interface RouteInfo {
         totalCost: string;
     }
 }
+
+export interface VehicleProfile {
+  vehicleType: string;
+  year: number;
+  vehicleClass: string;
+  consumption: number;
+  fuelType: string;
+}
