@@ -4,7 +4,8 @@ import type { GeoJsonObject } from 'geojson';
 export const fuelCostSchema = z.object({
   start: z.string().min(2, { message: "يجب إدخال نقطة انطلاق صالحة." }),
   end: z.string().min(2, { message: "يجب إدخال نقطة وصول صالحة." }),
-  vehicleType: z.string().min(2, { message: "يجب إدخال نوع المركبة." }),
+  manufacturer: z.string().min(2, { message: "يجب إدخال الشركة المصنّعة." }),
+  model: z.string().min(2, { message: "يجب إدخال طراز المركبة." }),
   year: z.coerce.number().min(1980, { message: "يجب أن تكون سنة التصنيع بعد 1980." }).max(new Date().getFullYear() + 1, { message: `لا يمكن أن تكون سنة التصنيع في المستقبل.` }),
   vehicleClass: z.string({ required_error: "الرجاء اختيار فئة المركبة." }),
   fuelType: z.string({ required_error: "الرجاء اختيار نوع الوقود." }),
@@ -47,9 +48,12 @@ export interface RouteInfo {
 }
 
 export interface VehicleProfile {
-  vehicleType: string;
+  manufacturer: string;
+  model: string;
   year: number;
   vehicleClass: string;
   consumption: number;
   fuelType: string;
 }
+
+    

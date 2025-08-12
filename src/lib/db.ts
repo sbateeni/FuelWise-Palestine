@@ -75,3 +75,5 @@ export async function getVehicleProfile(): Promise<VehicleProfile | undefined> {
 
 // Ensure the database is initialized when the app loads
 getDB();
+
+    

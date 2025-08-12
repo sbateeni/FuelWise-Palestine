@@ -16,6 +16,8 @@ import {
   Droplets,
   CircleDollarSign,
   Save,
+  Building,
+  CarTaxiFront,
 } from "lucide-react";
 import { Suspense } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -55,7 +57,8 @@ export function RoutePlanner() {
     defaultValues: {
       start: "رام الله",
       end: "نابلس",
-      vehicleType: "",
+      manufacturer: "",
+      model: "",
       year: new Date().getFullYear(),
       vehicleClass: "سيارة ركاب",
       fuelType: "بنزين 95",
@@ -76,7 +79,8 @@ export function RoutePlanner() {
         if (profile) {
           form.reset({
             ...form.getValues(),
-            vehicleType: profile.vehicleType,
+            manufacturer: profile.manufacturer,
+            model: profile.model,
             year: profile.year,
             vehicleClass: profile.vehicleClass,
             consumption: profile.consumption,
@@ -106,7 +110,8 @@ export function RoutePlanner() {
       setRouteInfo(result.data);
       // Save vehicle profile on successful calculation
       const vehicleProfile: VehicleProfile = {
-        vehicleType: data.vehicleType,
+        manufacturer: data.manufacturer,
+        model: data.model,
         year: data.year,
         vehicleClass: data.vehicleClass,
         consumption: data.consumption,
@@ -130,7 +135,7 @@ export function RoutePlanner() {
   // Fetch initial route on component mount
   React.useEffect(() => {
     // Only fetch if vehicle data is available to make a calculation
-    if (form.getValues().vehicleType) {
+    if (form.getValues().manufacturer) {
         getDirections(form.getValues());
     }
      // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,11 +188,18 @@ export function RoutePlanner() {
                     />
                   </div>
                   <Separator className="my-4" />
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <FormField control={form.control} name="vehicleType" render={({ field }) => (
+                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <FormField control={form.control} name="manufacturer" render={({ field }) => (
                       <FormItem>
-                        <FormLabel><Car className="inline-block ml-1 h-4 w-4" /> نوع المركبة</FormLabel>
-                        <FormControl><Input placeholder="مثال: VW Golf" {...field} /></FormControl>
+                        <FormLabel><Building className="inline-block ml-1 h-4 w-4" /> الشركة المصنّعة</FormLabel>
+                        <FormControl><Input placeholder="مثال: VW" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                     <FormField control={form.control} name="model" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel><CarTaxiFront className="inline-block ml-1 h-4 w-4" /> طراز المركبة</FormLabel>
+                        <FormControl><Input placeholder="مثال: Golf" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
@@ -210,6 +222,8 @@ export function RoutePlanner() {
                         <FormMessage />
                       </FormItem>
                     )} />
+                    </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mt-4">
                     <FormField control={form.control} name="fuelType" render={({ field }) => (
                       <FormItem>
                         <FormLabel><Fuel className="inline-block ml-1 h-4 w-4" /> نوع الوقود</FormLabel>
@@ -222,11 +236,9 @@ export function RoutePlanner() {
                         <FormMessage />
                       </FormItem>
                     )} />
-                  </div>
-                  <div className="mt-4">
-                    <FormField control={form.control} name="consumption" render={({ field }) => (
+                     <FormField control={form.control} name="consumption" render={({ field }) => (
                       <FormItem>
-                        <FormLabel><Gauge className="inline-block ml-1 h-4 w-4" /> معدل استهلاك الوقود (لتر / 100 كم)</FormLabel>
+                        <FormLabel><Gauge className="inline-block ml-1 h-4 w-4" /> معدل الاستهلاك (لتر/100كم)</FormLabel>
                         <FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -346,3 +358,5 @@ export function RoutePlanner() {
     </div>
   );
 }
+
+    
