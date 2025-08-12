@@ -39,13 +39,12 @@ const AutocompleteInput = ({
     async (inputValue: string) => {
       if (inputValue.length > 1) {
         setLoading(true)
+        setOpen(true)
         try {
             const result = await getPlaceSuggestions(inputValue)
             setSuggestions(result)
-            setOpen(result.length > 0)
         } catch (e) {
             setSuggestions([])
-            setOpen(false)
         } finally {
             setLoading(false)
         }
@@ -72,8 +71,7 @@ const AutocompleteInput = ({
     if (value) {
       debouncedFetch(value)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [value, debouncedFetch]);
 
   return (
     <FormField
@@ -96,23 +94,30 @@ const AutocompleteInput = ({
               </FormControl>
             </PopoverTrigger>
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-              {loading && <div className="p-2 text-sm text-muted-foreground">جاري البحث...</div>}
-              {!loading && suggestions.length > 0 && (
-                <div className="flex flex-col">
+              {loading ? (
+                <div className="p-2 text-sm text-muted-foreground flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  جاري البحث...
+                </div>
+              ) : suggestions.length > 0 ? (
+                <div className="flex flex-col max-h-60 overflow-y-auto">
                   {suggestions.map((suggestion) => (
                     <Button
                       key={suggestion}
                       variant="ghost"
-                      className="justify-start"
+                      className="justify-start text-right"
                       onClick={() => {
                         form.setValue(name, suggestion)
-                        setSuggestions([])
                         setOpen(false)
                       }}
                     >
                       {suggestion}
                     </Button>
                   ))}
+                </div>
+              ) : (
+                !loading && value.length > 1 && <div className="p-2 text-sm text-muted-foreground">
+                  لا توجد نتائج
                 </div>
               )}
             </PopoverContent>
@@ -246,7 +251,7 @@ export function FuelCostCalculator() {
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="اختر نوع الوقود" />
-                          </Trigger>
+                          </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {fuelTypes.map(ft => <SelectItem key={ft} value={ft}>{ft}</SelectItem>)}
