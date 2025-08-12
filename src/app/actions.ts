@@ -81,12 +81,13 @@ export async function getRouteAndTips(
     const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startCoords};${endCoords}?overview=full&steps=true&geometries=polyline`;
     const osrmResponse = await fetch(osrmUrl);
     if (!osrmResponse.ok) {
-      return { success: false, error: 'فشل في حساب المسار من OSRM.' };
+      const errorBody = await osrmResponse.text();
+      return { success: false, error: `فشل في حساب المسار من OSRM: ${osrmResponse.status} ${errorBody}` };
     }
     const osrmData = await osrmResponse.json();
 
     if (osrmData.code !== 'Ok' || !osrmData.routes?.[0]) {
-      return { success: false, error: 'لم يتم العثور على مسار بين النقطتين.' };
+      return { success: false, error: `لم يتم العثور على مسار بين النقطتين: ${osrmData.message}` };
     }
 
     const route = osrmData.routes[0];
@@ -129,6 +130,7 @@ export async function getRouteAndTips(
     return { success: true, data: routeInfo };
   } catch (error) {
     console.error('Error in getRouteAndTips:', error);
-    return { success: false, error: 'حدث خطأ غير متوقع.' };
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
   }
 }
