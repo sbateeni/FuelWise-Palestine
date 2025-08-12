@@ -55,6 +55,11 @@ export async function getAllFuelPrices(): Promise<{ [key: string]: number }> {
     const values = await store.getAll();
     await tx.done;
 
+    // This handles the case where the DB might be empty on first load
+    if (keys.length === 0 && values.length === 0) {
+        return defaultPrices;
+    }
+
     const prices: { [key: string]: number } = {};
     keys.forEach((key, index) => {
         prices[key] = values[index];
@@ -71,9 +76,3 @@ export async function getVehicleProfile(): Promise<VehicleProfile | undefined> {
     const db = await getDB();
     return db.get(VEHICLE_PROFILE_STORE, VEHICLE_PROFILE_KEY);
 }
-
-
-// Ensure the database is initialized when the app loads
-getDB();
-
-    
