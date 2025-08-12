@@ -108,7 +108,7 @@ export function RoutePlanner() {
         isMounted = false;
     };
   }, [form, toast]);
-  
+
   const getDirections = React.useCallback(async (data: FuelCostFormValues) => {
     setLoading(true);
     setRouteInfo(null);
@@ -380,7 +380,7 @@ export function RoutePlanner() {
                           <div className="space-y-2"><div className="h-24 bg-muted rounded w-full animate-pulse"></div></div>
                           ) : routeInfo ? (
                           <ScrollArea className="h-40 pr-4">
-                              <div className="whitespace-pre-wrap font-body text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: routeInfo.tips }} />
+                              <div className="whitespace-pre-wrap font-body text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: routeInfo.tips.replace(/\\n/g, '<br />').replace(/\* \s*/g, '• ') }} />
                           </ScrollArea>
                           ) : null}
                       </CardContent>
@@ -419,5 +419,3 @@ export function RoutePlanner() {
     </div>
   );
 }
-
-    
