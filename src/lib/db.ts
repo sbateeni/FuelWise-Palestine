@@ -26,21 +26,24 @@ const defaultPrices: { [key: string]: number } = {
 
 export async function getDB() {
   const db = await openDB<FuelWiseDB>(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion) {
-      if (oldVersion < 1) {
+    upgrade(db, oldVersion, newVersion, transaction) {
+      // Create fuel prices store if it doesn't exist (from version 1)
+      if (!db.objectStoreNames.contains(FUEL_PRICES_STORE)) {
         const fuelStore = db.createObjectStore(FUEL_PRICES_STORE);
         for (const [fuelType, price] of Object.entries(defaultPrices)) {
           fuelStore.put(price, fuelType);
         }
       }
-      if (oldVersion < 2) {
-        // Create the new store for vehicle profiles
+      
+      // Create vehicle profile store if it doesn't exist (from version 2)
+      if (!db.objectStoreNames.contains(VEHICLE_PROFILE_STORE)) {
         db.createObjectStore(VEHICLE_PROFILE_STORE);
       }
     },
   });
   return db;
 }
+
 
 export async function getFuelPrice(fuelType: string): Promise<number | undefined> {
   const db = await getDB();
@@ -49,22 +52,31 @@ export async function getFuelPrice(fuelType: string): Promise<number | undefined
 
 export async function getAllFuelPrices(): Promise<{ [key: string]: number }> {
     const db = await getDB();
-    const tx = db.transaction(FUEL_PRICES_STORE, 'readonly');
-    const store = tx.objectStore(FUEL_PRICES_STORE);
-    const keys = await store.getAllKeys();
-    const values = await store.getAll();
-    await tx.done;
+    try {
+        const tx = db.transaction(FUEL_PRICES_STORE, 'readonly');
+        const store = tx.objectStore(FUEL_PRICES_STORE);
+        const keys = await store.getAllKeys();
+        const values = await store.getAll();
+        await tx.done;
 
-    // This handles the case where the DB might be empty on first load
-    if (keys.length === 0 && values.length === 0) {
+        // This handles the case where the DB might be empty on first load and needs seeding
+        if (keys.length === 0 && values.length === 0) {
+            const writeTx = db.transaction(FUEL_PRICES_STORE, 'readwrite');
+            const writeStore = writeTx.objectStore(FUEL_PRICES_STORE);
+            await Promise.all(Object.entries(defaultPrices).map(([key, value]) => writeStore.put(value, key)));
+            await writeTx.done;
+            return defaultPrices;
+        }
+
+        const prices: { [key: string]: number } = {};
+        keys.forEach((key, index) => {
+            prices[key] = values[index];
+        });
+        return prices;
+    } catch (error) {
+        console.warn("Could not get fuel prices, falling back to default. This may happen if the store was just created.", error);
         return defaultPrices;
     }
-
-    const prices: { [key: string]: number } = {};
-    keys.forEach((key, index) => {
-        prices[key] = values[index];
-    });
-    return prices;
 }
 
 export async function saveVehicleProfile(profile: VehicleProfile): Promise<void> {
@@ -74,5 +86,15 @@ export async function saveVehicleProfile(profile: VehicleProfile): Promise<void>
 
 export async function getVehicleProfile(): Promise<VehicleProfile | undefined> {
     const db = await getDB();
-    return db.get(VEHICLE_PROFILE_STORE, VEHICLE_PROFILE_KEY);
+    // Use a transaction to safely access the store
+    try {
+        const tx = db.transaction(VEHICLE_PROFILE_STORE, 'readonly');
+        const store = tx.objectStore(VEHICLE_PROFILE_STORE);
+        const profile = await store.get(VEHICLE_PROFILE_KEY);
+        await tx.done;
+        return profile;
+    } catch (error) {
+        console.error("Failed to get vehicle profile, the store might not exist yet.", error);
+        return undefined;
+    }
 }
