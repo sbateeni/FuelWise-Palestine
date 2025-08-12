@@ -18,3 +18,19 @@ export interface CalculationResult {
   totalCost: number;
   fuelPrice: number;
 }
+
+export interface RouteRequest {
+    start: string;
+    end: string;
+}
+
+export interface RouteInfo {
+    distance: string;
+    duration: string;
+    steps: Array<{
+        instruction: string;
+        distance: string;
+    }>;
+    tips: string;
+    routeGeometry: [number, number][];
+}

@@ -1,240 +1,215 @@
-"use client"
-import { useState, useRef, useEffect } from 'react'
-import { Loader } from '@googlemaps/js-api-loader'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+"use client";
 
-interface Route {
-  distance: string
-  duration: string
-  steps: Array<{
-    instruction: string
-    distance: string
-    duration: string
-  }>
-}
+import * as React from "react";
+import {
+  Loader2,
+  Navigation,
+  Clock,
+  Waypoints,
+  Sparkles,
+} from "lucide-react";
+import dynamic from "next/dynamic";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { getRouteAndTips } from "@/app/actions";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { RouteInfo } from "@/lib/types";
+
+// Dynamically import the map to avoid SSR issues with Leaflet
+const Map = dynamic(() => import("@/components/map"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-96 w-full rounded-lg shadow-inner border bg-muted flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  ),
+});
 
 export default function RoutePlanner() {
-  const [start, setStart] = useState<string>('')
-  const [end, setEnd] = useState<string>('')
-  const [route, setRoute] = useState<Route | null>(null)
-  const [geminiTips, setGeminiTips] = useState<string>('')
-  const [loading, setLoading] = useState<boolean>(false)
-  const mapRef = useRef<HTMLDivElement>(null)
-  const directionsServiceRef = useRef<google.maps.DirectionsService>()
-  const directionsRendererRef = useRef<google.maps.DirectionsRenderer>()
-  const mapInstanceRef = useRef<google.maps.Map>()
+  const [start, setStart] = React.useState("رام الله");
+  const [end, setEnd] = React.useState("نابلس");
+  const [routeInfo, setRouteInfo] = React.useState<RouteInfo | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  // تهيئة الخريطة عند تحميل المكون
-  useEffect(() => {
-    const initMap = async () => {
-        if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-            console.error("Google Maps API key is missing.");
-            return;
-        }
-      const loader = new Loader({
-        apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-        version: 'weekly',
-        libraries: ['places', 'routes']
-      })
-
-      await loader.load()
-      const { Map } = await google.maps.importLibrary('maps') as google.maps.MapsLibrary;
-      const { DirectionsService, DirectionsRenderer } = await google.maps.importLibrary("routes") as google.maps.RoutesLibrary;
-
-      if (mapRef.current) {
-        mapInstanceRef.current = new Map(mapRef.current, {
-            center: { lat: 31.9466, lng: 35.3027 }, // مركز فلسطين
-            zoom: 8,
-            mapId: 'DEMO_MAP_ID' // Required for advanced markers
-        });
-
-        directionsServiceRef.current = new DirectionsService()
-        directionsRendererRef.current = new DirectionsRenderer({
-            map: mapInstanceRef.current,
-            suppressMarkers: false
-        })
-      }
-    }
-
-    initMap()
-  }, [])
-
-  // الحصول على الاتجاهات
   const getDirections = async () => {
-    if (!start || !end) return
-
-    setLoading(true)
-    setRoute(null)
-    setGeminiTips('')
+    if (!start || !end) {
+      setError("الرجاء إدخال نقطة البداية والوصول.");
+      return;
+    }
+    setLoading(true);
+    setRouteInfo(null);
+    setError(null);
 
     try {
-      // 1. الحصول على الاتجاهات من Google Maps
-      const results = await directionsServiceRef.current!.route({
-        origin: start,
-        destination: end,
-        travelMode: google.maps.TravelMode.DRIVING,
-        region: 'ps',
-        unitSystem: google.maps.UnitSystem.METRIC
-      })
-
-      if (results.routes && results.routes.length > 0 && results.routes[0].legs && results.routes[0].legs.length > 0) {
-        directionsRendererRef.current!.setDirections(results)
-
-        // 2. تحضير بيانات المسار
-        const leg = results.routes[0].legs[0];
-        const routeData: Route = {
-            distance: leg.distance?.text || 'غير معروف',
-            duration: leg.duration?.text || 'غير معروف',
-            steps: leg.steps.map(step => ({
-                instruction: step.instructions?.replace(/<[^>]*>/g, '') || '',
-                distance: step.distance?.text || '',
-                duration: step.duration?.text || ''
-            }))
-        }
-
-        setRoute(routeData)
-
-        // 3. الحصول على نصائح من Gemini
-        if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-            console.error("Gemini API key is missing.");
-            setGeminiTips("مفتاح Gemini API غير موجود. لا يمكن تحميل النصائح.");
-            return;
-        }
-        const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY)
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
-        const prompt = `
-        أعطني نصائح للسفر بالسيارة من ${start} إلى ${end} في فلسطين مع مراعاة:
-        - حالة الطرق
-        - نقاط التفتيش إن وجدت
-        - محطات الوقود على الطريق
-        - الوقت الأمثل للسفر
-        - أي تحذيرات أمنية
-        
-        المسافة: ${routeData.distance}
-        المدة: ${routeData.duration}
-        
-        أجب باللغة العربية بجمل مختصرة ونقاط واضحة.
-        `
-
-        const result = await model.generateContent(prompt)
-        const response = await result.response
-        setGeminiTips(response.text())
+      const result = await getRouteAndTips({ start, end });
+      if (result.success) {
+        setRouteInfo(result.data);
       } else {
-        throw new Error("No routes found.");
+        setError(result.error);
       }
-    } catch (error) {
-      console.error('Error:', error)
-      alert('حدث خطأ أثناء جلب الاتجاهات. يرجى التأكد من العناوين.')
-      setRoute(null)
+    } catch (err) {
+      setError("حدث خطأ غير متوقع أثناء جلب المسار.");
+      console.error(err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  // Fetch initial route on component mount
+  React.useEffect(() => {
+    getDirections();
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4" dir="rtl">
-      <h1 className="text-3xl font-bold text-center mb-6 text-primary">مخطط الرحلات الذكي في فلسطين</h1>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* مدخلات المستخدم */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>ادخل تفاصيل رحلتك</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="start-point" className="block mb-2 font-medium">نقطة البداية</Label>
-              <Input
-                id="start-point"
-                type="text"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-                placeholder="مثال: القدس"
-                className="w-full p-2"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="end-point" className="block mb-2 font-medium">نقطة الوصول</Label>
-              <Input
-                id="end-point"
-                type="text"
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-                placeholder="مثال: غزة"
-                className="w-full p-2"
-              />
-            </div>
-            
-            <Button
-              onClick={getDirections}
-              disabled={loading}
-              className="w-full"
-            >
-              {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-              {loading ? 'جاري البحث...' : 'عرض الاتجاهات والنصائح'}
-            </Button>
-          </CardContent>
-        </Card>
+    <div className="w-full max-w-7xl mx-auto p-2 sm:p-4" dir="rtl">
+      <Card className="mb-4">
+        <CardHeader>
+          <h1 className="text-3xl font-bold text-center text-primary">
+            مخطط الرحلات الذكي في فلسطين
+          </h1>
+        </CardHeader>
+      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="lg:col-span-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>ادخل تفاصيل رحلتك</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="start-point" className="block mb-2 font-medium">
+                  نقطة البداية
+                </Label>
+                <Input
+                  id="start-point"
+                  type="text"
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                  placeholder="مثال: القدس"
+                  className="w-full p-2"
+                />
+              </div>
 
-        {/* الخريطة */}
-        <div className="lg:col-span-2">
-          <div ref={mapRef} className="h-96 w-full rounded-lg shadow border" />
+              <div>
+                <Label htmlFor="end-point" className="block mb-2 font-medium">
+                  نقطة الوصول
+                </Label>
+                <Input
+                  id="end-point"
+                  type="text"
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                  placeholder="مثال: غزة"
+                  className="w-full p-2"
+                />
+              </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button
+                onClick={getDirections}
+                disabled={loading}
+                className="w-full"
+              >
+                {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                {loading ? "جاري البحث..." : "عرض الاتجاهات والنصائح"}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="lg:col-span-8">
+          <Map route={routeInfo?.routeGeometry} />
         </div>
       </div>
 
-      {/* نتائج الاتجاهات */}
-      {(route || loading) && (
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+      {(loading || routeInfo) && (
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
-                <CardTitle>تفاصيل الرحلة</CardTitle>
+              <CardTitle className="flex items-center">
+                <Waypoints className="ml-2" />
+                تفاصيل الرحلة
+              </CardTitle>
             </CardHeader>
             <CardContent>
-            {loading && !route ? (
-                <p>جاري تحميل تفاصيل الرحلة...</p>
-            ) : route ? (
-              <div className="space-y-2">
-                <p><strong>المسافة:</strong> {route.distance}</p>
-                <p><strong>المدة:</strong> {route.duration}</p>
-                
-                <h3 className="font-bold pt-4 text-lg">خطوات الرحلة:</h3>
-                <ol className="list-decimal list-inside space-y-2 max-h-60 overflow-y-auto pr-4">
-                  {route.steps.map((step, index) => (
-                    <li key={index}>
-                      {step.instruction} <strong>({step.distance})</strong>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ) : null}
+              {loading && !routeInfo ? (
+                <div className="space-y-4">
+                  <div className="h-6 bg-muted rounded w-1/2"></div>
+                  <div className="h-6 bg-muted rounded w-1/3"></div>
+                  <div className="h-20 bg-muted rounded w-full mt-4"></div>
+                </div>
+              ) : routeInfo ? (
+                <div className="space-y-4">
+                  <div className="flex justify-around text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <Navigation className="h-7 w-7 text-primary" />
+                      <span className="font-bold text-lg">
+                        {routeInfo.distance}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        المسافة
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <Clock className="h-7 w-7 text-primary" />
+                      <span className="font-bold text-lg">
+                        {routeInfo.duration}
+                      </span>
+                       <span className="text-xs text-muted-foreground">
+                        المدة
+                      </span>
+                    </div>
+                  </div>
+
+                  <h3 className="font-bold pt-4 text-lg border-t mt-4">
+                    خطوات الرحلة:
+                  </h3>
+                  <ScrollArea className="h-60 pr-4">
+                    <ol className="list-decimal list-inside space-y-3 text-sm">
+                      {routeInfo.steps.map((step, index) => (
+                        <li key={index}>
+                          {step.instruction}{" "}
+                          <strong className="text-muted-foreground">
+                            ({step.distance})
+                          </strong>
+                        </li>
+                      ))}
+                    </ol>
+                  </ScrollArea>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
 
-          {/* نصائح Gemini */}
           <Card>
             <CardHeader>
-                <CardTitle>نصائح ذكية للسفر</CardTitle>
+              <CardTitle className="flex items-center">
+                <Sparkles className="ml-2" />
+                نصائح ذكية للسفر
+              </CardTitle>
             </CardHeader>
             <CardContent>
-            {loading && !geminiTips ? (
-                <p>جاري تحميل النصائح...</p>
-            ) : geminiTips ? (
-              <div className="whitespace-pre-wrap font-body text-sm">{geminiTips}</div>
-            ) : null }
+              {loading && !routeInfo ? (
+                <div className="space-y-2">
+                   <div className="h-4 bg-muted rounded w-full"></div>
+                   <div className="h-4 bg-muted rounded w-5/6"></div>
+                   <div className="h-4 bg-muted rounded w-full"></div>
+                   <div className="h-4 bg-muted rounded w-4/6"></div>
+                </div>
+              ) : routeInfo ? (
+                <div
+                  className="whitespace-pre-wrap font-body text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: routeInfo.tips }}
+                />
+              ) : null}
             </CardContent>
           </Card>
         </div>
       )}
     </div>
-  )
+  );
 }
-
-// Re-export shadcn components to be used in the planner
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
-

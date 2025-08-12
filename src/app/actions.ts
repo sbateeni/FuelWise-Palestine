@@ -2,7 +2,11 @@
 
 import { estimateDistance } from '@/ai/flows/distance-estimation';
 import { suggestPlaces } from '@/ai/flows/places-autocomplete';
-import type { FuelCostFormValues, CalculationResult } from '@/lib/types';
+import type { FuelCostFormValues, CalculationResult, RouteInfo, RouteRequest } from '@/lib/types';
+import { getGeocode } from '@/ai/flows/geocode';
+import { getTravelTips } from '@/ai/flows/travel-tips';
+import { decode } from 'polyline-encoded';
+
 
 export async function calculateFuelCost(
   data: FuelCostFormValues,
@@ -53,4 +57,78 @@ export async function getPlaceSuggestions(query: string): Promise<string[]> {
         console.error('Error getting place suggestions:', error);
         return [];
     }
+}
+
+
+export async function getRouteAndTips(
+  req: RouteRequest
+): Promise<{ success: true; data: RouteInfo } | { success: false; error: string }> {
+  try {
+    // 1. Geocode start and end points in parallel
+    const [startGeocode, endGeocode] = await Promise.all([
+      getGeocode({ location: req.start }),
+      getGeocode({ location: req.end }),
+    ]);
+
+    if (!startGeocode?.latitude || !endGeocode?.latitude) {
+      return { success: false, error: 'لم نتمكن من تحديد مواقع البداية أو النهاية.' };
+    }
+
+    const startCoords = `${startGeocode.longitude},${startGeocode.latitude}`;
+    const endCoords = `${endGeocode.longitude},${endGeocode.latitude}`;
+
+    // 2. Fetch route from OSRM
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startCoords};${endCoords}?overview=full&steps=true&geometries=polyline`;
+    const osrmResponse = await fetch(osrmUrl);
+    if (!osrmResponse.ok) {
+      return { success: false, error: 'فشل في حساب المسار من OSRM.' };
+    }
+    const osrmData = await osrmResponse.json();
+
+    if (osrmData.code !== 'Ok' || !osrmData.routes?.[0]) {
+      return { success: false, error: 'لم يتم العثور على مسار بين النقطتين.' };
+    }
+
+    const route = osrmData.routes[0];
+    const leg = route.legs[0];
+
+    // 3. Format distance and duration
+    const distanceKm = (leg.distance / 1000).toFixed(1) + ' كم';
+    const durationMinutes = Math.round(leg.duration / 60);
+    const durationFormatted = `${Math.floor(durationMinutes / 60)} س ${durationMinutes % 60} د`;
+    
+    // 4. Decode polyline for the map
+    const routeGeometry = decode(route.geometry);
+
+    // 5. Get travel tips from Gemini in parallel
+    const tipsPromise = getTravelTips({
+      start: req.start,
+      end: req.end,
+      distance: distanceKm,
+      duration: durationFormatted,
+    });
+
+    // 6. Format steps
+    const steps = leg.steps.map((step: any) => ({
+      instruction: step.maneuver.instruction,
+      distance: `${(step.distance / 1000).toFixed(1)} كم`,
+    }));
+
+    // 7. Await tips and assemble response
+    const tipsResponse = await tipsPromise;
+    const tips = tipsResponse.tips.replace(/\*/g, '•'); // Replace asterisks with bullets for better display
+
+    const routeInfo: RouteInfo = {
+      distance: distanceKm,
+      duration: durationFormatted,
+      steps,
+      tips,
+      routeGeometry,
+    };
+
+    return { success: true, data: routeInfo };
+  } catch (error) {
+    console.error('Error in getRouteAndTips:', error);
+    return { success: false, error: 'حدث خطأ غير متوقع.' };
+  }
 }
