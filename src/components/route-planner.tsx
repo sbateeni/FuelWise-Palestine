@@ -9,7 +9,6 @@ import {
   Sparkles,
   Fuel,
   MapPin,
-  Car,
   CalendarDays,
   Layers3,
   Gauge,
@@ -68,6 +67,48 @@ export function RoutePlanner() {
     },
   });
 
+  React.useEffect(() => {
+    let isMounted = true;
+    async function loadInitialData() {
+      try {
+        const [prices, profile] = await Promise.all([
+          getAllFuelPrices(),
+          getVehicleProfile()
+        ]);
+        
+        if (isMounted) {
+            const priceKeys = Object.keys(prices);
+            setFuelTypes(priceKeys);
+
+            if (profile) {
+              const newValues: FuelCostFormValues = {
+                ...form.getValues(),
+                manufacturer: profile.manufacturer,
+                model: profile.model,
+                year: profile.year,
+                vehicleClass: profile.vehicleClass,
+                consumption: profile.consumption,
+                fuelType: profile.fuelType || (priceKeys.length > 0 ? priceKeys[0] : ''),
+              };
+              form.reset(newValues);
+            }
+        }
+      } catch (error) {
+        console.error("Failed to load initial data from DB", error);
+        toast({
+          variant: "destructive",
+          title: "خطأ في التحميل",
+          description: "لم نتمكن من تحميل البيانات المحفوظة.",
+        });
+      }
+    }
+    loadInitialData();
+
+    return () => {
+        isMounted = false;
+    };
+  }, [form, toast]);
+  
   const getDirections = React.useCallback(async (data: FuelCostFormValues) => {
     setLoading(true);
     setRouteInfo(null);
@@ -119,52 +160,7 @@ export function RoutePlanner() {
     }
   }, [toast, form]);
 
-  React.useEffect(() => {
-    let isMounted = true;
-    async function loadInitialData() {
-      try {
-        const [prices, profile] = await Promise.all([
-          getAllFuelPrices(),
-          getVehicleProfile()
-        ]);
-        
-        if (isMounted) {
-            const priceKeys = Object.keys(prices);
-            setFuelTypes(priceKeys);
-
-            if (profile) {
-              const newValues: FuelCostFormValues = {
-                ...form.getValues(),
-                manufacturer: profile.manufacturer,
-                model: profile.model,
-                year: profile.year,
-                vehicleClass: profile.vehicleClass,
-                consumption: profile.consumption,
-                fuelType: profile.fuelType || (priceKeys.length > 0 ? priceKeys[0] : ''),
-              };
-              form.reset(newValues);
-              // Do not auto-fetch on load, let the user click the button.
-              // getDirections(newValues); 
-            }
-        }
-      } catch (error) {
-        console.error("Failed to load initial data from DB", error);
-        toast({
-          variant: "destructive",
-          title: "خطأ في التحميل",
-          description: "لم نتمكن من تحميل البيانات المحفوظة.",
-        });
-      }
-    }
-    loadInitialData();
-
-    return () => {
-        isMounted = false;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
-  const fetchConsumption = async () => {
+  const fetchConsumption = React.useCallback(async () => {
     const { manufacturer, model, year } = form.getValues();
     if (!manufacturer || !model || !year) {
       toast({
@@ -199,7 +195,7 @@ export function RoutePlanner() {
     } finally {
         setLoadingConsumption(false);
     }
-  };
+  }, [form, toast]);
   
   return (
     <div className="w-full mx-auto" dir="rtl">
@@ -423,3 +419,5 @@ export function RoutePlanner() {
     </div>
   );
 }
+
+    
