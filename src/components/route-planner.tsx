@@ -16,14 +16,6 @@ import { Label } from "@/components/ui/label";
 import { getRouteAndTips } from "@/app/actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RouteInfo } from "@/lib/types";
-import Map from "@/components/map";
-
-const MapLoadingSkeleton = () => (
-    <div className="h-96 w-full rounded-lg shadow-inner border bg-muted flex items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-);
-
 
 export default function RoutePlanner() {
   const [start, setStart] = React.useState("رام الله");
@@ -75,59 +67,53 @@ export default function RoutePlanner() {
           </h1>
         </CardHeader>
       </Card>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>ادخل تفاصيل رحلتك</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="start-point" className="block mb-2 font-medium">
-                  نقطة البداية
-                </Label>
-                <Input
-                  id="start-point"
-                  type="text"
-                  value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                  placeholder="مثال: القدس"
-                  className="w-full p-2"
-                />
-              </div>
+      
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle>ادخل تفاصيل رحلتك</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="start-point" className="block mb-2 font-medium">
+                نقطة البداية
+              </Label>
+              <Input
+                id="start-point"
+                type="text"
+                value={start}
+                onChange={(e) => setStart(e.target.value)}
+                placeholder="مثال: القدس"
+                className="w-full p-2"
+              />
+            </div>
 
-              <div>
-                <Label htmlFor="end-point" className="block mb-2 font-medium">
-                  نقطة الوصول
-                </Label>
-                <Input
-                  id="end-point"
-                  type="text"
-                  value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                  placeholder="مثال: غزة"
-                  className="w-full p-2"
-                />
-              </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button
-                onClick={handleGetDirectionsClick}
-                disabled={loading}
-                className="w-full"
-              >
-                {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-                {loading ? "جاري البحث..." : "عرض الاتجاهات والنصائح"}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            <div>
+              <Label htmlFor="end-point" className="block mb-2 font-medium">
+                نقطة الوصول
+              </Label>
+              <Input
+                id="end-point"
+                type="text"
+                value={end}
+                onChange={(e) => setEnd(e.target.value)}
+                placeholder="مثال: غزة"
+                className="w-full p-2"
+              />
+            </div>
+          </div>
+          {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+          <Button
+            onClick={handleGetDirectionsClick}
+            disabled={loading}
+            className="w-full mt-4"
+          >
+            {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+            {loading ? "جاري البحث..." : "عرض الاتجاهات والنصائح"}
+          </Button>
+        </CardContent>
+      </Card>
 
-        <div className="lg:col-span-8">
-          {typeof window !== 'undefined' ? 
-            <Map route={routeInfo?.routeGeometry} /> : <MapLoadingSkeleton />
-          }
-        </div>
-      </div>
 
       {(loading || routeInfo) && (
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
