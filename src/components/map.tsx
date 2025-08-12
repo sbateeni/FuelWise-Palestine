@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react';
 import type { LatLngTuple } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { decode } from 'polyline-encoded';
 
 
 interface MapProps {
@@ -66,7 +65,7 @@ export default function Map({ routeGeometry }: MapProps) {
         if (routeGeometry && routeGeometry.length > 0) {
             const positions: LatLngTuple[] = routeGeometry.map(p => [p[0], p[1]]);
             
-            routeLayerRef.current = L.polyline(positions, { color: 'blue' }).addTo(mapRef.current);
+            routeLayerRef.current = L.polyline(positions, { color: 'hsl(var(--primary))' }).addTo(mapRef.current);
 
             // Fit map to route bounds
             if (positions.length > 0) {
