@@ -314,5 +314,3 @@ export function FuelCostCalculator() {
     </div>
   )
 }
-
-    
