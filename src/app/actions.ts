@@ -4,15 +4,9 @@ import { estimateDistance } from '@/ai/flows/distance-estimation';
 import { suggestPlaces } from '@/ai/flows/places-autocomplete';
 import type { FuelCostFormValues, CalculationResult } from '@/lib/types';
 
-// Mock data, simulating Firestore fetch
-const fuelPrices: { [key: string]: number } = {
-  "بنزين 95": 6.94,
-  "بنزين 98": 7.85,
-  "سولار": 6.16,
-};
-
 export async function calculateFuelCost(
-  data: FuelCostFormValues
+  data: FuelCostFormValues,
+  fuelPrice: number | undefined
 ): Promise<{ success: true; result: CalculationResult } | { success: false; error: string }> {
   try {
     const { start, end, consumption, fuelType } = data;
@@ -25,10 +19,9 @@ export async function calculateFuelCost(
       return { success: false, error: 'لم نتمكن من حساب المسافة. الرجاء التأكد من المواقع المدخلة.' };
     }
 
-    // 2. Get fuel price
-    const fuelPrice = fuelPrices[fuelType];
-    if (!fuelPrice) {
-      return { success: false, error: 'نوع الوقود المحدد غير صالح.' };
+    // 2. Get fuel price (passed from client)
+    if (typeof fuelPrice !== 'number') {
+      return { success: false, error: 'نوع الوقود المحدد غير صالح أو لا يوجد له سعر.' };
     }
 
     // 3. Calculate fuel needed and total cost

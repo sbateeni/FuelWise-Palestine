@@ -15,9 +15,9 @@ import { useToast } from "@/hooks/use-toast"
 import { calculateFuelCost, getPlaceSuggestions } from "@/app/actions"
 import { fuelCostSchema, type FuelCostFormValues, type CalculationResult } from "@/lib/types"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { getFuelPrice, getAllFuelPrices } from "@/lib/db"
 
 const vehicleClasses = ["سيارة ركاب", "شاحنة صغيرة", "حافلة", "دراجة نارية"]
-const fuelTypes = ["بنزين 95", "بنزين 98", "سولار"]
 
 const AutocompleteInput = ({
   name,
@@ -93,7 +93,10 @@ const AutocompleteInput = ({
                 />
               </FormControl>
             </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <PopoverContent 
+              className="w-[--radix-popover-trigger-width] p-0" 
+              align="start"
+            >
               {loading ? (
                 <div className="p-2 text-sm text-muted-foreground flex items-center">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -116,7 +119,7 @@ const AutocompleteInput = ({
                   ))}
                 </div>
               ) : (
-                !loading && value.length > 1 && <div className="p-2 text-sm text-muted-foreground">
+                !loading && value && value.length > 1 && <div className="p-2 text-sm text-muted-foreground">
                   لا توجد نتائج
                 </div>
               )}
@@ -133,7 +136,26 @@ const AutocompleteInput = ({
 export function FuelCostCalculator() {
   const [isLoading, setIsLoading] = React.useState(false)
   const [result, setResult] = React.useState<CalculationResult | null>(null)
+  const [fuelTypes, setFuelTypes] = React.useState<string[]>([])
   const { toast } = useToast()
+
+  React.useEffect(() => {
+    async function loadFuelTypes() {
+        try {
+            const prices = await getAllFuelPrices();
+            setFuelTypes(Object.keys(prices));
+        } catch (error) {
+            console.error("Failed to load fuel prices from DB", error);
+            toast({
+                variant: "destructive",
+                title: "خطأ",
+                description: "لم نتمكن من تحميل أسعار الوقود.",
+            });
+        }
+    }
+    loadFuelTypes();
+  }, [toast]);
+
 
   const form = useForm<FuelCostFormValues>({
     resolver: zodResolver(fuelCostSchema),
@@ -151,17 +173,28 @@ export function FuelCostCalculator() {
   async function onSubmit(data: FuelCostFormValues) {
     setIsLoading(true)
     setResult(null)
-    const response = await calculateFuelCost(data)
-    setIsLoading(false)
 
-    if (response.success) {
-      setResult(response.result)
-    } else {
-      toast({
-        variant: "destructive",
-        title: "خطأ في الحساب",
-        description: response.error,
-      })
+    try {
+        const price = await getFuelPrice(data.fuelType);
+        const response = await calculateFuelCost(data, price)
+
+        if (response.success) {
+            setResult(response.result)
+        } else {
+            toast({
+                variant: "destructive",
+                title: "خطأ في الحساب",
+                description: response.error,
+            })
+        }
+    } catch (error) {
+        toast({
+            variant: "destructive",
+            title: "خطأ",
+            description: "حدث خطأ غير متوقع أثناء حساب التكلفة.",
+        });
+    } finally {
+        setIsLoading(false)
     }
   }
 
