@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import *d React from "react";
 import {
   Loader2,
   Navigation,
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { getRouteAndTips } from "@/app/actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RouteInfo } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RoutePlanner() {
   const [start, setStart] = React.useState("رام الله");
@@ -23,6 +24,7 @@ export default function RoutePlanner() {
   const [routeInfo, setRouteInfo] = React.useState<RouteInfo | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const { toast } = useToast();
 
   const getDirections = React.useCallback(async (startPoint: string, endPoint: string) => {
     if (!startPoint || !endPoint) {
@@ -33,20 +35,19 @@ export default function RoutePlanner() {
     setRouteInfo(null);
     setError(null);
 
-    try {
-      const result = await getRouteAndTips({ start: startPoint, end: endPoint });
-      if (result.success) {
-        setRouteInfo(result.data);
-      } else {
-        setError(result.error);
-      }
-    } catch (err) {
-      setError("حدث خطأ غير متوقع أثناء جلب المسار.");
-      console.error(err);
-    } finally {
-      setLoading(false);
+    const result = await getRouteAndTips({ start: startPoint, end: endPoint });
+    if (result.success) {
+      setRouteInfo(result.data);
+    } else {
+      setError(result.error);
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: result.error,
+      });
     }
-  }, []);
+    setLoading(false);
+  }, [toast]);
 
   const handleGetDirectionsClick = () => {
     getDirections(start, end);
@@ -68,137 +69,140 @@ export default function RoutePlanner() {
         </CardHeader>
       </Card>
       
-      <Card className="mb-4">
-        <CardHeader>
-          <CardTitle>ادخل تفاصيل رحلتك</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="start-point" className="block mb-2 font-medium">
-                نقطة البداية
-              </Label>
-              <Input
-                id="start-point"
-                type="text"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-                placeholder="مثال: القدس"
-                className="w-full p-2"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="end-point" className="block mb-2 font-medium">
-                نقطة الوصول
-              </Label>
-              <Input
-                id="end-point"
-                type="text"
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-                placeholder="مثال: غزة"
-                className="w-full p-2"
-              />
-            </div>
-          </div>
-          {error && <p className="text-sm text-destructive mt-2">{error}</p>}
-          <Button
-            onClick={handleGetDirectionsClick}
-            disabled={loading}
-            className="w-full mt-4"
-          >
-            {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-            {loading ? "جاري البحث..." : "عرض الاتجاهات والنصائح"}
-          </Button>
-        </CardContent>
-      </Card>
-
-
-      {(loading || routeInfo) && (
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-1">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Waypoints className="ml-2" />
-                تفاصيل الرحلة
-              </CardTitle>
+              <CardTitle>ادخل تفاصيل رحلتك</CardTitle>
             </CardHeader>
-            <CardContent>
-              {loading && !routeInfo ? (
-                <div className="space-y-4">
-                  <div className="h-6 bg-muted rounded w-1/2"></div>
-                  <div className="h-6 bg-muted rounded w-1/3"></div>
-                  <div className="h-20 bg-muted rounded w-full mt-4"></div>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="start-point" className="block mb-2 font-medium">
+                    نقطة البداية
+                  </Label>
+                  <Input
+                    id="start-point"
+                    type="text"
+                    value={start}
+                    onChange={(e) => setStart(e.target.value)}
+                    placeholder="مثال: القدس"
+                    className="w-full p-2"
+                  />
                 </div>
-              ) : routeInfo ? (
-                <div className="space-y-4">
-                  <div className="flex justify-around text-center">
-                    <div className="flex flex-col items-center gap-1">
-                      <Navigation className="h-7 w-7 text-primary" />
-                      <span className="font-bold text-lg">
-                        {routeInfo.distance}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        المسافة
-                      </span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <Clock className="h-7 w-7 text-primary" />
-                      <span className="font-bold text-lg">
-                        {routeInfo.duration}
-                      </span>
-                       <span className="text-xs text-muted-foreground">
-                        المدة
-                      </span>
-                    </div>
-                  </div>
 
-                  <h3 className="font-bold pt-4 text-lg border-t mt-4">
-                    خطوات الرحلة:
-                  </h3>
-                  <ScrollArea className="h-60 pr-4">
-                    <ol className="list-decimal list-inside space-y-3 text-sm">
-                      {routeInfo.steps.map((step, index) => (
-                        <li key={index}>
-                          {step.instruction}{" "}
-                          <strong className="text-muted-foreground">
-                            ({step.distance})
-                          </strong>
-                        </li>
-                      ))}
-                    </ol>
-                  </ScrollArea>
+                <div>
+                  <Label htmlFor="end-point" className="block mb-2 font-medium">
+                    نقطة الوصول
+                  </Label>
+                  <Input
+                    id="end-point"
+                    type="text"
+                    value={end}
+                    onChange={(e) => setEnd(e.target.value)}
+                    placeholder="مثال: غزة"
+                    className="w-full p-2"
+                  />
                 </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Sparkles className="ml-2" />
-                نصائح ذكية للسفر
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading && !routeInfo ? (
-                <div className="space-y-2">
-                   <div className="h-4 bg-muted rounded w-full"></div>
-                   <div className="h-4 bg-muted rounded w-5/6"></div>
-                   <div className="h-4 bg-muted rounded w-full"></div>
-                   <div className="h-4 bg-muted rounded w-4/6"></div>
-                </div>
-              ) : routeInfo ? (
-                <div
-                  className="whitespace-pre-wrap font-body text-sm leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: routeInfo.tips }}
-                />
-              ) : null}
+              </div>
+              {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+              <Button
+                onClick={handleGetDirectionsClick}
+                disabled={loading}
+                className="w-full mt-4"
+              >
+                {loading && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                {loading ? "جاري البحث..." : "عرض الاتجاهات والنصائح"}
+              </Button>
             </CardContent>
           </Card>
         </div>
-      )}
+
+        {(loading || routeInfo) && (
+          <div className="md:col-span-2 mt-4 md:mt-0 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Waypoints className="ml-2" />
+                  تفاصيل الرحلة
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading && !routeInfo ? (
+                  <div className="space-y-4">
+                    <div className="h-6 bg-muted rounded w-1/2"></div>
+                    <div className="h-6 bg-muted rounded w-1/3"></div>
+                    <div className="h-20 bg-muted rounded w-full mt-4"></div>
+                  </div>
+                ) : routeInfo ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-around text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <Navigation className="h-7 w-7 text-primary" />
+                        <span className="font-bold text-lg">
+                          {routeInfo.distance}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          المسافة
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        <Clock className="h-7 w-7 text-primary" />
+                        <span className="font-bold text-lg">
+                          {routeInfo.duration}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          المدة
+                        </span>
+                      </div>
+                    </div>
+
+                    <h3 className="font-bold pt-4 text-lg border-t mt-4">
+                      خطوات الرحلة:
+                    </h3>
+                    <ScrollArea className="h-60 pr-4">
+                      <ol className="list-decimal list-inside space-y-3 text-sm">
+                        {routeInfo.steps.map((step, index) => (
+                          <li key={index}>
+                            {step.instruction}{" "}
+                            <strong className="text-muted-foreground">
+                              ({step.distance})
+                            </strong>
+                          </li>
+                        ))}
+                      </ol>
+                    </ScrollArea>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Sparkles className="ml-2" />
+                  نصائح ذكية للسفر
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading && !routeInfo ? (
+                  <div className="space-y-2">
+                    <div className="h-4 bg-muted rounded w-full"></div>
+                    <div className="h-4 bg-muted rounded w-5/6"></div>
+                    <div className="h-4 bg-muted rounded w-full"></div>
+                    <div className="h-4 bg-muted rounded w-4/6"></div>
+                  </div>
+                ) : routeInfo ? (
+                  <div
+                    className="whitespace-pre-wrap font-body text-sm leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: routeInfo.tips }}
+                  />
+                ) : null}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
