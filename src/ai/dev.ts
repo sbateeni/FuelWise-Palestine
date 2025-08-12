@@ -6,3 +6,4 @@ import '@/ai/flows/places-autocomplete.ts';
 import '@/ai/flows/geocode.ts';
 import '@/ai/flows/travel-tips.ts';
 import '@/ai/flows/gas-stations.ts';
+import '@/ai/flows/vehicle-consumption.ts';

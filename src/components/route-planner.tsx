@@ -18,6 +18,7 @@ import {
   Save,
   Building,
   CarTaxiFront,
+  Wand2,
 } from "lucide-react";
 import { Suspense } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,6 +50,7 @@ const vehicleClasses = ["سيارة ركاب", "شاحنة صغيرة", "حاف�
 export function RoutePlanner() {
   const [routeInfo, setRouteInfo] = React.useState<RouteInfo | null>(null);
   const [loading, setLoading] = React.useState(false);
+  const [loadingConsumption, setLoadingConsumption] = React.useState(false);
   const { toast } = useToast();
   const [fuelTypes, setFuelTypes] = React.useState<string[]>([]);
   
@@ -131,6 +133,44 @@ export function RoutePlanner() {
     }
     setLoading(false);
   }, [toast]);
+
+  const fetchConsumption = async () => {
+    const { manufacturer, model, year } = form.getValues();
+    if (!manufacturer || !model || !year) {
+      toast({
+        variant: "destructive",
+        title: "معلومات ناقصة",
+        description: "الرجاء إدخال الشركة المصنّعة والطراز وسنة التصنيع للمركبة.",
+      });
+      return;
+    }
+    setLoadingConsumption(true);
+    try {
+        const response = await fetch(`/api/consumption?manufacturer=${manufacturer}&model=${model}&year=${year}`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'فشل في جلب البيانات');
+        }
+
+        form.setValue('consumption', data.consumption, { shouldValidate: true });
+        toast({
+            title: `تم جلب الاستهلاك بنجاح (${data.source === 'ai' ? 'AI' : 'محفوظ'})`,
+            description: `تم تحديد معدل الاستهلاك المقدر بـ ${data.consumption} لتر/100كم.`,
+        });
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'حدث خطأ غير متوقع';
+        toast({
+            variant: "destructive",
+            title: "خطأ",
+            description: errorMessage,
+        });
+    } finally {
+        setLoadingConsumption(false);
+    }
+};
+
   
   // Fetch initial route on component mount
   React.useEffect(() => {
@@ -238,9 +278,14 @@ export function RoutePlanner() {
                     )} />
                      <FormField control={form.control} name="consumption" render={({ field }) => (
                       <FormItem>
-                        <FormLabel><Gauge className="inline-block ml-1 h-4 w-4" /> معدل الاستهلاك (لتر/100كم)</FormLabel>
-                        <FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
-                        <FormMessage />
+                          <FormLabel><Gauge className="inline-block ml-1 h-4 w-4" /> معدل الاستهلاك (لتر/100كم)</FormLabel>
+                          <div className="flex items-center gap-2">
+                              <FormControl><Input type="number" step="0.1" {...field} value={field.value ?? ''} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} /></FormControl>
+                              <Button type="button" variant="outline" size="icon" onClick={fetchConsumption} disabled={loadingConsumption} aria-label="جلب الاستهلاك تلقائيًا">
+                                  {loadingConsumption ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                              </Button>
+                          </div>
+                          <FormMessage />
                       </FormItem>
                     )} />
                   </div>
@@ -358,5 +403,3 @@ export function RoutePlanner() {
     </div>
   );
 }
-
-    
