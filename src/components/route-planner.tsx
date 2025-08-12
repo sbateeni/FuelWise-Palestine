@@ -103,7 +103,7 @@ export function RoutePlanner() {
   }, []);
   
 
-  const getDirections = React.useCallback(async (data: FuelCostFormValues) => {
+  const getDirections = async (data: FuelCostFormValues) => {
     setLoading(true);
     setRouteInfo(null);
 
@@ -151,7 +151,7 @@ export function RoutePlanner() {
     } finally {
         setLoading(false);
     }
-  }, [toast, form]);
+  };
 
   const fetchConsumption = async () => {
     const { manufacturer, model, year } = form.getValues();
@@ -188,7 +188,7 @@ export function RoutePlanner() {
     } finally {
         setLoadingConsumption(false);
     }
-};
+  };
 
   
   // Fetch initial route on component mount
