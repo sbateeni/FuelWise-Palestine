@@ -32,147 +32,17 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { getRouteAndTips, getPlaceSuggestions } from "@/app/actions";
+import { getRouteAndTips } from "@/app/actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RouteInfo, FuelCostFormValues, VehicleProfile } from "@/lib/types";
 import { fuelCostSchema } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { getAllFuelPrices, getVehicleProfile, saveVehicleProfile } from "@/lib/db";
 import { Separator } from "./ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import Map from './map';
 
 const vehicleClasses = ["سيارة ركاب", "شاحنة صغيرة", "حافلة", "دراجة نارية"];
-
-const AutocompleteInput = ({
-  name,
-  label,
-  placeholder,
-  form,
-}: {
-  name: "start" | "end";
-  label: string;
-  placeholder: string;
-  form: any;
-}) => {
-  const [suggestions, setSuggestions] = React.useState<string[]>([]);
-  const [loading, setLoading] = React.useState(false);
-  const [open, setOpen] = React.useState(false);
-
-  const [inputValue, setInputValue] = React.useState(form.getValues(name) || "");
-  const triggerRef = React.useRef<HTMLButtonElement>(null);
-
-  const handleSuggestionsFetch = React.useCallback(async (value: string) => {
-    if (value.length > 1) {
-      setLoading(true);
-      try {
-        const result = await getPlaceSuggestions(value);
-        setSuggestions(result);
-        if (result.length > 0) setOpen(true);
-        else setOpen(false);
-      } catch (e) {
-        setSuggestions([]);
-        setOpen(false);
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      setSuggestions([]);
-      setOpen(false);
-    }
-  }, []);
-
-  const debouncedFetch = React.useCallback(
-    (value: string) => {
-      const handler = setTimeout(() => {
-        handleSuggestionsFetch(value);
-      }, 300);
-
-      return () => clearTimeout(handler);
-    },
-    [handleSuggestionsFetch]
-  );
-
-  const handleLocalInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setInputValue(value);
-    form.setValue(name, value, { shouldValidate: true, shouldDirty: true });
-    debouncedFetch(value);
-  };
-
-  return (
-    <FormField
-      control={form.control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>
-            <MapPin className="inline-block ml-1 h-4 w-4" />
-            {label}
-          </FormLabel>
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild ref={triggerRef}>
-              <FormControl>
-                <Input
-                  placeholder={placeholder}
-                  {...field}
-                  value={inputValue}
-                  onChange={handleLocalInputChange}
-                  onClick={() => {
-                    if (suggestions.length > 0) {
-                      setOpen(true);
-                    }
-                  }}
-                  autoComplete="off"
-                />
-              </FormControl>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-[--radix-popover-trigger-width] p-0"
-              align="start"
-              onOpenAutoFocus={(e) => e.preventDefault()}
-            >
-              {loading ? (
-                <div className="p-2 text-sm text-muted-foreground flex items-center">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  جاري البحث...
-                </div>
-              ) : suggestions.length > 0 ? (
-                <div className="flex flex-col max-h-60 overflow-y-auto">
-                  {suggestions.map((suggestion) => (
-                    <Button
-                      key={suggestion}
-                      variant="ghost"
-                      className="justify-start text-right"
-                      onClick={() => {
-                        form.setValue(name, suggestion);
-                        setInputValue(suggestion);
-                        setOpen(false);
-                      }}
-                    >
-                      {suggestion}
-                    </Button>
-                  ))}
-                </div>
-              ) : !loading && inputValue && inputValue.length > 1 ? (
-                <div className="p-2 text-sm text-muted-foreground">
-                  لا توجد نتائج
-                </div>
-              ) : null}
-            </PopoverContent>
-          </Popover>
-          <FormMessage />
-        </FormItem>
-      )}
-    />
-  );
-};
-
 
 export function RoutePlanner() {
   const [routeInfo, setRouteInfo] = React.useState<RouteInfo | null>(null);
@@ -279,8 +149,38 @@ export function RoutePlanner() {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(getDirections)} className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <AutocompleteInput form={form} name="start" label="نقطة الانطلاق" placeholder="مثال: رام الله" />
-                    <AutocompleteInput form={form} name="end" label="نقطة الوصول" placeholder="مثال: نابلس" />
+                    <FormField
+                      control={form.control}
+                      name="start"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            <MapPin className="inline-block ml-1 h-4 w-4" />
+                            نقطة الانطلاق
+                          </FormLabel>
+                          <FormControl>
+                            <Input placeholder="مثال: رام الله" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="end"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            <MapPin className="inline-block ml-1 h-4 w-4" />
+                            نقطة الوصول
+                          </FormLabel>
+                          <FormControl>
+                            <Input placeholder="مثال: نابلس" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                   <Separator className="my-4" />
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
