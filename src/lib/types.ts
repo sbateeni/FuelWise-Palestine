@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { GeoJsonObject } from 'geojson';
 
 export const fuelCostSchema = z.object({
   start: z.string().min(2, { message: "يجب إدخال نقطة انطلاق صالحة." }),
@@ -32,5 +33,5 @@ export interface RouteInfo {
         distance: string;
     }>;
     tips: string;
-    routeGeometry: [number, number][];
+    routeGeometry: GeoJsonObject;
 }

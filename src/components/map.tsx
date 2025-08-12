@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import type { LatLngTuple } from 'leaflet';
+import type { GeoJsonObject } from 'geojson';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 
 interface MapProps {
-    routeGeometry?: [number, number][];
+    routeGeometry?: GeoJsonObject;
 }
 
-// Fix for marker icons
 const DefaultIcon = L.icon({
     iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
     iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
@@ -27,9 +26,9 @@ L.Marker.prototype.options.icon = DefaultIcon;
 export default function Map({ routeGeometry }: MapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const routeLayerRef = useRef<L.Polyline | null>(null);
+  const routeLayerRef = useRef<L.GeoJSON | null>(null);
 
-  const center: LatLngTuple = [31.9466, 35.3027]; // Center of Palestine
+  const center: L.LatLngTuple = [31.9466, 35.3027]; // Center of Palestine
 
   // Initialize map
   useEffect(() => {
@@ -53,7 +52,7 @@ export default function Map({ routeGeometry }: MapProps) {
     };
   }, [center]);
 
-  // Update route polyline
+  // Update route GeoJSON layer
   useEffect(() => {
     if (mapRef.current) {
         // Remove old route layer if it exists
@@ -62,14 +61,14 @@ export default function Map({ routeGeometry }: MapProps) {
             routeLayerRef.current = null;
         }
 
-        if (routeGeometry && routeGeometry.length > 0) {
-            const positions: LatLngTuple[] = routeGeometry.map(p => [p[0], p[1]]);
-            
-            routeLayerRef.current = L.polyline(positions, { color: 'hsl(var(--primary))' }).addTo(mapRef.current);
+        if (routeGeometry) {
+            routeLayerRef.current = L.geoJSON(routeGeometry, {
+                style: { color: 'hsl(var(--primary))', weight: 5 }
+            }).addTo(mapRef.current);
 
             // Fit map to route bounds
-            if (positions.length > 0) {
-              mapRef.current.fitBounds(L.latLngBounds(positions), { padding: [50, 50] });
+            if (routeLayerRef.current.getBounds().isValid()) {
+              mapRef.current.fitBounds(routeLayerRef.current.getBounds(), { padding: [50, 50] });
             }
         } else {
            // If no route, reset to center

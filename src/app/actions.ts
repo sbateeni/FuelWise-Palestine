@@ -5,7 +5,6 @@ import { suggestPlaces } from '@/ai/flows/places-autocomplete';
 import type { FuelCostFormValues, CalculationResult, RouteInfo, RouteRequest } from '@/lib/types';
 import { getGeocode } from '@/ai/flows/geocode';
 import { getTravelTips } from '@/ai/flows/travel-tips';
-import { decode } from 'polyline-encoded';
 
 
 export async function calculateFuelCost(
@@ -78,8 +77,8 @@ export async function getRouteAndTips(
     const startCoords = `${startGeocode.longitude},${startGeocode.latitude}`;
     const endCoords = `${endGeocode.longitude},${endGeocode.latitude}`;
 
-    // 2. Fetch route from OSRM
-    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startCoords};${endCoords}?overview=full&steps=true&geometries=polyline`;
+    // 2. Fetch route from OSRM, requesting GeoJSON geometry
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startCoords};${endCoords}?overview=full&steps=true&geometries=geojson`;
     const osrmResponse = await fetch(osrmUrl);
     if (!osrmResponse.ok) {
       const errorBody = await osrmResponse.text();
@@ -99,8 +98,8 @@ export async function getRouteAndTips(
     const durationMinutes = Math.round(leg.duration / 60);
     const durationFormatted = `${Math.floor(durationMinutes / 60)} س ${durationMinutes % 60} د`;
     
-    // 4. Decode polyline for the map
-    const routeGeometry = decode(route.geometry);
+    // 4. Get GeoJSON geometry for the map
+    const routeGeometry = route.geometry;
 
     // 5. Get travel tips from Gemini in parallel
     const tipsPromise = getTravelTips({
