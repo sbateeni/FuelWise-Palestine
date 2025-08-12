@@ -1,57 +1,18 @@
 'use server';
 
-import { estimateDistance } from '@/ai/flows/distance-estimation';
-import { suggestPlaces } from '@/ai/flows/places-autocomplete';
-import type { FuelCostFormValues, CalculationResult, RouteInfo, RouteRequest } from '@/lib/types';
 import { getGeocode } from '@/ai/flows/geocode';
 import { getTravelTips } from '@/ai/flows/travel-tips';
 import { getGasStations } from '@/ai/flows/gas-stations';
+import { getFuelPrice } from '@/lib/db';
+import type { RouteInfo, FuelCostFormValues } from '@/lib/types';
 
-
-export async function calculateFuelCost(
-  data: FuelCostFormValues,
-  fuelPrice: number | undefined
-): Promise<{ success: true; result: CalculationResult } | { success: false; error: string }> {
-  try {
-    const { start, end, consumption, fuelType } = data;
-
-    // 1. Estimate distance using GenAI flow
-    const distanceResponse = await estimateDistance({ start, end });
-    const distanceKm = distanceResponse.distanceKm;
-
-    if (typeof distanceKm !== 'number' || distanceKm <= 0) {
-      return { success: false, error: 'لم نتمكن من حساب المسافة. الرجاء التأكد من المواقع المدخلة.' };
-    }
-
-    // 2. Get fuel price (passed from client)
-    if (typeof fuelPrice !== 'number') {
-      return { success: false, error: 'نوع الوقود المحدد غير صالح أو لا يوجد له سعر.' };
-    }
-
-    // 3. Calculate fuel needed and total cost
-    const fuelNeeded = (distanceKm / 100) * consumption;
-    const totalCost = fuelNeeded * fuelNeeded;
-
-    const result: CalculationResult = {
-      distanceKm: parseFloat(distanceKm.toFixed(2)),
-      fuelNeeded: parseFloat(fuelNeeded.toFixed(2)),
-      totalCost: parseFloat(totalCost.toFixed(2)),
-      fuelPrice,
-    };
-
-    return { success: true, result };
-  } catch (error) {
-    console.error('Error in calculateFuelCost:', error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return { success: false, error: errorMessage };
-  }
-}
 
 export async function getPlaceSuggestions(query: string): Promise<string[]> {
     if (query.length < 2) {
         return [];
     }
     try {
+        const { suggestPlaces } = await import('@/ai/flows/places-autocomplete');
         const response = await suggestPlaces({ query });
         return response.suggestions;
     } catch (error) {
@@ -62,10 +23,9 @@ export async function getPlaceSuggestions(query: string): Promise<string[]> {
 
 
 export async function getRouteAndTips(
-  req: RouteRequest
+  req: FuelCostFormValues
 ): Promise<{ success: true; data: RouteInfo } | { success: false; error: string }> {
   try {
-    // 1. Geocode start and end points in parallel
     const [startGeocode, endGeocode] = await Promise.all([
       getGeocode({ location: req.start }),
       getGeocode({ location: req.end }),
@@ -78,12 +38,11 @@ export async function getRouteAndTips(
     const startCoords = `${startGeocode.longitude},${startGeocode.latitude}`;
     const endCoords = `${endGeocode.longitude},${endGeocode.latitude}`;
 
-    // 2. Fetch route from OSRM, requesting GeoJSON geometry
-    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startCoords};${endCoords}?overview=full&steps=true&geometries=geojson`;
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startCoords};${endCoords}?overview=full&geometries=geojson&steps=true`;
     const osrmResponse = await fetch(osrmUrl);
     if (!osrmResponse.ok) {
-      const errorBody = await osrmResponse.text();
-      return { success: false, error: `فشل في حساب المسار من OSRM: ${osrmResponse.status} ${errorBody}` };
+        const errorBody = await osrmResponse.text();
+        return { success: false, error: `فشل في حساب المسار من OSRM: ${osrmResponse.status} ${errorBody}` };
     }
     const osrmData = await osrmResponse.json();
 
@@ -93,16 +52,14 @@ export async function getRouteAndTips(
 
     const route = osrmData.routes[0];
     const leg = route.legs[0];
+    const distanceKmRaw = leg.distance / 1000;
 
-    // 3. Format distance and duration
-    const distanceKm = (leg.distance / 1000).toFixed(1) + ' كم';
+    const distanceKm = distanceKmRaw.toFixed(1) + ' كم';
     const durationMinutes = Math.round(leg.duration / 60);
     const durationFormatted = `${Math.floor(durationMinutes / 60)} س ${durationMinutes % 60} د`;
     
-    // 4. Get GeoJSON geometry for the map
     const routeGeometry = route.geometry;
 
-    // 5. Get travel tips and gas stations from Gemini in parallel
     const tipsPromise = getTravelTips({
       start: req.start,
       end: req.end,
@@ -110,18 +67,27 @@ export async function getRouteAndTips(
       duration: durationFormatted,
     });
     const gasStationsPromise = getGasStations({ start: req.start, end: req.end });
+    const fuelPricePromise = getFuelPrice(req.fuelType);
 
-
-    // 6. Format steps
     const steps = leg.steps.map((step: any) => ({
       instruction: step.maneuver.instruction,
       distance: `${(step.distance / 1000).toFixed(1)} كم`,
     }));
 
-    // 7. Await tips and assemble response
-    const [tipsResponse, gasStationsResponse] = await Promise.all([tipsPromise, gasStationsPromise]);
-    const tips = tipsResponse.tips.replace(/\*/g, '•'); // Replace asterisks with bullets for better display
+    const [tipsResponse, gasStationsResponse, fuelPrice] = await Promise.all([tipsPromise, gasStationsPromise, fuelPricePromise]);
+    
+    const tips = tipsResponse.tips.replace(/\*/g, '•');
     const gasStations = gasStationsResponse.stations;
+
+    let costResult;
+    if (fuelPrice) {
+        const fuelNeeded = (distanceKmRaw / 100) * req.consumption;
+        const totalCost = fuelNeeded * fuelPrice;
+        costResult = {
+            fuelNeeded: fuelNeeded.toFixed(2),
+            totalCost: totalCost.toFixed(2),
+        }
+    }
 
     const routeInfo: RouteInfo = {
       distance: distanceKm,
@@ -130,6 +96,7 @@ export async function getRouteAndTips(
       tips,
       routeGeometry,
       gasStations,
+      cost: costResult
     };
 
     return { success: true, data: routeInfo };

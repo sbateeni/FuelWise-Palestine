@@ -40,4 +40,8 @@ export interface RouteInfo {
     tips: string;
     routeGeometry: GeoJsonObject;
     gasStations: GasStation[];
+    cost?: {
+        fuelNeeded: string;
+        totalCost: string;
+    }
 }
