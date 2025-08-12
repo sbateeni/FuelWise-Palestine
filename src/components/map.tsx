@@ -1,11 +1,15 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import { useRef } from "react";
+import { useEffect, useRef } from 'react';
 import type { LatLngTuple } from 'leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { decode } from 'polyline-encoded';
 
+
+interface MapProps {
+    routeGeometry?: [number, number][];
+}
 
 // Fix for marker icons
 const DefaultIcon = L.icon({
@@ -20,39 +24,67 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-interface MapProps {
-    routeGeometry?: [number, number][];
-}
-
 
 export default function Map({ routeGeometry }: MapProps) {
-  const mapRef = useRef(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const routeLayerRef = useRef<L.Polyline | null>(null);
+
   const center: LatLngTuple = [31.9466, 35.3027]; // Center of Palestine
 
-  const positions: LatLngTuple[] | undefined = routeGeometry?.map(p => [p[0], p[1]]);
+  // Initialize map
+  useEffect(() => {
+    if (mapContainerRef.current && !mapRef.current) {
+      mapRef.current = L.map(mapContainerRef.current, {
+        center: center,
+        zoom: 8,
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(mapRef.current);
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [center]);
+
+  // Update route polyline
+  useEffect(() => {
+    if (mapRef.current) {
+        // Remove old route layer if it exists
+        if (routeLayerRef.current) {
+            routeLayerRef.current.remove();
+            routeLayerRef.current = null;
+        }
+
+        if (routeGeometry && routeGeometry.length > 0) {
+            const positions: LatLngTuple[] = routeGeometry.map(p => [p[0], p[1]]);
+            
+            routeLayerRef.current = L.polyline(positions, { color: 'blue' }).addTo(mapRef.current);
+
+            // Fit map to route bounds
+            if (positions.length > 0) {
+              mapRef.current.fitBounds(L.latLngBounds(positions), { padding: [50, 50] });
+            }
+        } else {
+           // If no route, reset to center
+           mapRef.current.setView(center, 8);
+        }
+    }
+  }, [routeGeometry, center]);
 
 
   return (
-    <MapContainer
-        center={center}
-        zoom={8}
-        scrollWheelZoom={false}
-        style={{ height: "100%", width: "100%" }}
-        ref={mapRef}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {positions && (
-        <Polyline
-            pathOptions={{ color: 'blue' }}
-            positions={positions}
-        />
-        )}
-       <Marker position={center}>
-        <Popup>فلسطين</Popup>
-      </Marker>
-    </MapContainer>
+    <div 
+      ref={mapContainerRef} 
+      style={{ height: '100%', width: '100%' }}
+      className="rounded-lg shadow-md"
+    />
   );
 }

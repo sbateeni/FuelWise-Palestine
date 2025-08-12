@@ -18,6 +18,7 @@ import { getRouteAndTips } from "@/app/actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RouteInfo } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { Suspense } from 'react';
 
 const Map = dynamic(() => import('@/components/map'), { 
     ssr: false,
@@ -190,7 +191,9 @@ export default function RoutePlanner() {
         <div className="lg:col-span-2 flex flex-col gap-4">
             <Card className="flex-grow min-h-[400px]">
                 <CardContent className="p-0 h-full w-full">
+                  <Suspense fallback={<div className="h-full w-full bg-muted flex items-center justify-center"><p>جاري تحميل الخريطة...</p></div>}>
                     <Map routeGeometry={routeInfo?.routeGeometry} />
+                  </Suspense>
                 </CardContent>
             </Card>
              {(loading || routeInfo) && (
