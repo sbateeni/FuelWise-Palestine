@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -309,8 +310,17 @@ export function RoutePlanner() {
                     )} />
                   </div>
                   <Button type="submit" disabled={loading} className="w-full mt-4">
-                    {loading ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : <Save className="me-2 h-4 w-4" />}
-                    {loading ? "Calculating..." : "Calculate Route & Cost"}
+                    {loading ? (
+                      <>
+                        <Loader2 className="me-2 h-4 w-4 animate-spin" />
+                        Calculating...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="me-2 h-4 w-4" />
+                        Calculate Route & Cost
+                      </>
+                    )}
                   </Button>
                 </form>
               </Form>
