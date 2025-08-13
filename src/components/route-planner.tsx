@@ -141,7 +141,7 @@ export function RoutePlanner() {
           navigator.geolocation.clearWatch(watchIdRef.current);
         }
     };
-  }, [form, toast]);
+  }, [form, toast, loadFavoriteTrips]);
 
 
   const getDirections = React.useCallback(async (data: FuelCostFormValues) => {
@@ -358,7 +358,7 @@ export function RoutePlanner() {
                         <FormItem className="sm:col-span-2">
                           <FormLabel><MapPin className="inline-block me-2 h-4 w-4 text-primary" /> Starting Point</FormLabel>
                           <FormControl>
-                              <AutocompleteInput {...field} formFieldName="start" placeholder="e.g., Ramallah" />
+                              <AutocompleteInput {...field} onChange={field.onChange} value={field.value} formFieldName="start" placeholder="e.g., Ramallah" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -367,7 +367,7 @@ export function RoutePlanner() {
                         <FormItem className="sm:col-span-2">
                           <FormLabel><MapPin className="inline-block me-2 h-4 w-4 text-primary" /> Destination</FormLabel>
                            <FormControl>
-                              <AutocompleteInput {...field} formFieldName="end" placeholder="e.g., Nablus" />
+                              <AutocompleteInput {...field} onChange={field.onChange} value={field.value} formFieldName="end" placeholder="e.g., Nablus" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
