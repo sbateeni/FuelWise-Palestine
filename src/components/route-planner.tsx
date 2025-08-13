@@ -62,7 +62,10 @@ export function RoutePlanner() {
   const [isTripActive, setIsTripActive] = React.useState(false);
   const [currentSpeed, setCurrentSpeed] = React.useState(0);
   const [distanceTraveled, setDistanceTraveled] = React.useState(0);
+  const [fuelConsumed, setFuelConsumed] = React.useState(0);
+  const [tripCost, setTripCost] = React.useState(0);
   const watchIdRef = React.useRef<number | null>(null);
+  const tripMetricsRef = React.useRef({ consumption: 0, fuelPrice: 0 });
   
   const form = useForm<FuelCostFormValues>({
     resolver: zodResolver(fuelCostSchema),
@@ -231,7 +234,7 @@ export function RoutePlanner() {
     return R * c; // Distance in km
   }
 
-  const startTrip = () => {
+  const startTrip = async () => {
     if (!navigator.geolocation) {
         toast({
             variant: "destructive",
@@ -241,20 +244,46 @@ export function RoutePlanner() {
         return;
     }
 
+    // Get current form values for calculation
+    const { consumption, fuelType } = form.getValues();
+    const price = await getFuelPrice(fuelType);
+
+    if (!price || !consumption) {
+        toast({
+            variant: "destructive",
+            title: "Vehicle Data Missing",
+            description: "Please set vehicle consumption and fuel type before starting a trip.",
+        });
+        return;
+    }
+
+    tripMetricsRef.current = { consumption, fuelPrice: price };
     let lastPosition: GeolocationPosition | null = null;
 
     const watchId = navigator.geolocation.watchPosition(
         (position) => {
             setCurrentSpeed(position.coords.speed ? position.coords.speed * 3.6 : 0); // m/s to km/h
-
+            
+            let newDistance = 0;
             if (lastPosition) {
-                const newDistance = calculateDistance(
+                newDistance = calculateDistance(
                     lastPosition.coords.latitude,
                     lastPosition.coords.longitude,
                     position.coords.latitude,
                     position.coords.longitude
                 );
-                setDistanceTraveled(prev => prev + newDistance);
+            }
+            
+            if (newDistance > 0) {
+                 setDistanceTraveled(prevDist => {
+                    const totalDistance = prevDist + newDistance;
+                    const { consumption, fuelPrice } = tripMetricsRef.current;
+                    const consumed = (totalDistance / 100) * consumption;
+                    const cost = consumed * fuelPrice;
+                    setFuelConsumed(consumed);
+                    setTripCost(cost);
+                    return totalDistance;
+                 });
             }
             lastPosition = position;
         },
@@ -270,7 +299,9 @@ export function RoutePlanner() {
     );
     watchIdRef.current = watchId;
     setIsTripActive(true);
-    setDistanceTraveled(0); // Reset distance
+    setDistanceTraveled(0);
+    setFuelConsumed(0);
+    setTripCost(0);
     toast({
         title: "Trip Started!",
         description: "Live tracking is now active."
@@ -437,22 +468,30 @@ export function RoutePlanner() {
                       {isTripActive ? 'Stop Trip' : 'Start Trip'}
                   </Button>
               </CardHeader>
-              {isTripActive && (
-                <CardContent>
-                    <div className="flex justify-around text-center">
-                        <div className="flex flex-col items-center gap-1">
-                            <TrendingUp className="h-7 w-7 text-primary" />
-                            <span className="font-bold text-lg">{currentSpeed.toFixed(1)} km/h</span>
-                            <span className="text-xs text-muted-foreground">Current Speed</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-1">
-                            <Milestone className="h-7 w-7 text-primary" />
-                            <span className="font-bold text-lg">{distanceTraveled.toFixed(2)} km</span>
-                            <span className="text-xs text-muted-foreground">Distance Traveled</span>
-                        </div>
-                    </div>
-                </CardContent>
-              )}
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-secondary/50">
+                    <TrendingUp className="h-7 w-7 text-primary" />
+                    <span className="font-bold text-lg">{currentSpeed.toFixed(1)} km/h</span>
+                    <span className="text-xs text-muted-foreground">Current Speed</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-secondary/50">
+                    <Milestone className="h-7 w-7 text-primary" />
+                    <span className="font-bold text-lg">{distanceTraveled.toFixed(2)} km</span>
+                    <span className="text-xs text-muted-foreground">Distance Traveled</span>
+                  </div>
+                   <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-secondary/50">
+                    <Droplets className="h-7 w-7 text-primary" />
+                    <span className="font-bold text-lg">{fuelConsumed.toFixed(2)} L</span>
+                    <span className="text-xs text-muted-foreground">Fuel Consumed</span>
+                  </div>
+                   <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-secondary/50">
+                    <CircleDollarSign className="h-7 w-7 text-primary" />
+                    <span className="font-bold text-lg">{tripCost.toFixed(2)} ILS</span>
+                    <span className="text-xs text-muted-foreground">Trip Cost</span>
+                  </div>
+                </div>
+              </CardContent>
           </Card>
 
            {(loading || routeInfo) && (
@@ -481,7 +520,7 @@ export function RoutePlanner() {
                       </CardContent>
                   </Card>
                    <Card>
-                      <CardHeader><CardTitle className="flex items-center"><CircleDollarSign className="me-2" /> Fuel Cost</CardTitle></CardHeader>
+                      <CardHeader><CardTitle className="flex items-center"><CircleDollarSign className="me-2" /> Est. Fuel Cost</CardTitle></CardHeader>
                       <CardContent>
                           {loading && !routeInfo ? (
                               <div className="space-y-4"><div className="h-20 bg-muted rounded w-full animate-pulse"></div></div>
@@ -549,5 +588,7 @@ export function RoutePlanner() {
     </div>
   );
 }
+
+    
 
     
