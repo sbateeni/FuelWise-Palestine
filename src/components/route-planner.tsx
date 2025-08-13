@@ -22,14 +22,18 @@ import {
   PlayCircle,
   StopCircle,
   TrendingUp,
-  Milestone
+  Milestone,
+  Route,
+  Trash2,
+  Star,
+  List
 } from "lucide-react";
 import { Suspense } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -41,15 +45,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { getRouteAndTips } from "@/app/actions";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { RouteInfo, FuelCostFormValues, VehicleProfile } from "@/lib/types";
+import type { RouteInfo, FuelCostFormValues, VehicleProfile, FavoriteTrip } from "@/lib/types";
 import { fuelCostSchema } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { getAllFuelPrices, getVehicleProfile, saveVehicleProfile, getFuelPrice } from "@/lib/db";
+import { getAllFuelPrices, getVehicleProfile, saveVehicleProfile, getFuelPrice, getFavoriteTrips, saveFavoriteTrip, deleteFavoriteTrip } from "@/lib/db";
 import { Separator } from "./ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AutocompleteInput } from './autocomplete-input';
 import Map from './map';
 
-const vehicleClasses = ["Passenger Car", "Van", "Bus", "Motorcycle"];
+const vehicleClasses = ["Passenger Car", "SUV", "Van", "Bus", "Truck", "Motorcycle"];
 
 export function RoutePlanner() {
   const [routeInfo, setRouteInfo] = React.useState<RouteInfo | null>(null);
@@ -57,8 +63,8 @@ export function RoutePlanner() {
   const [loadingConsumption, setLoadingConsumption] = React.useState(false);
   const { toast } = useToast();
   const [fuelTypes, setFuelTypes] = React.useState<string[]>([]);
+  const [favoriteTrips, setFavoriteTrips] = React.useState<FavoriteTrip[]>([]);
 
-  // State for live tracking
   const [isTripActive, setIsTripActive] = React.useState(false);
   const [currentPosition, setCurrentPosition] = React.useState<[number, number] | null>(null);
   const [currentSpeed, setCurrentSpeed] = React.useState(0);
@@ -71,8 +77,8 @@ export function RoutePlanner() {
   const form = useForm<FuelCostFormValues>({
     resolver: zodResolver(fuelCostSchema),
     defaultValues: {
-      start: "Ramallah",
-      end: "Nablus",
+      start: "",
+      end: "",
       manufacturer: "",
       model: "",
       year: new Date().getFullYear(),
@@ -82,18 +88,25 @@ export function RoutePlanner() {
     },
   });
 
+  const loadFavoriteTrips = React.useCallback(async () => {
+    const trips = await getFavoriteTrips();
+    setFavoriteTrips(trips);
+  }, []);
+
   React.useEffect(() => {
     let isMounted = true;
     async function loadInitialData() {
       try {
-        const [prices, profile] = await Promise.all([
+        const [prices, profile, favTrips] = await Promise.all([
           getAllFuelPrices(),
-          getVehicleProfile()
+          getVehicleProfile(),
+          getFavoriteTrips()
         ]);
         
         if (isMounted) {
             const priceKeys = Object.keys(prices);
             setFuelTypes(priceKeys);
+            setFavoriteTrips(favTrips);
 
             if (profile) {
               const newValues: Partial<FuelCostFormValues> = {
@@ -124,7 +137,6 @@ export function RoutePlanner() {
 
     return () => {
         isMounted = false;
-        // Clean up geolocation watch on component unmount
         if (watchIdRef.current) {
           navigator.geolocation.clearWatch(watchIdRef.current);
         }
@@ -135,7 +147,7 @@ export function RoutePlanner() {
   const getDirections = React.useCallback(async (data: FuelCostFormValues) => {
     setLoading(true);
     setRouteInfo(null);
-    if(isTripActive) stopTrip(); // Stop any active trip before calculating a new one
+    if(isTripActive) stopTrip();
 
     try {
         const price = await getFuelPrice(data.fuelType);
@@ -222,9 +234,8 @@ export function RoutePlanner() {
     }
   }, [form, toast]);
   
-  // Haversine formula to calculate distance between two lat/lng points
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Radius of the Earth in km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a =
@@ -232,29 +243,20 @@ export function RoutePlanner() {
       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distance in km
+    return R * c;
   }
 
   const startTrip = async () => {
     if (!navigator.geolocation) {
-        toast({
-            variant: "destructive",
-            title: "GPS not supported",
-            description: "Your browser does not support geolocation.",
-        });
+        toast({ variant: "destructive", title: "GPS not supported" });
         return;
     }
 
-    // Get current form values for calculation
     const { consumption, fuelType } = form.getValues();
     const price = await getFuelPrice(fuelType);
 
     if (!price || !consumption) {
-        toast({
-            variant: "destructive",
-            title: "Vehicle Data Missing",
-            description: "Please set vehicle consumption and fuel type before starting a trip.",
-        });
+        toast({ variant: "destructive", title: "Vehicle Data Missing" });
         return;
     }
 
@@ -264,15 +266,13 @@ export function RoutePlanner() {
     const watchId = navigator.geolocation.watchPosition(
         (position) => {
             setCurrentPosition([position.coords.latitude, position.coords.longitude]);
-            setCurrentSpeed(position.coords.speed ? position.coords.speed * 3.6 : 0); // m/s to km/h
+            setCurrentSpeed(position.coords.speed ? position.coords.speed * 3.6 : 0);
             
             let newDistance = 0;
             if (lastPosition) {
                 newDistance = calculateDistance(
-                    lastPosition.coords.latitude,
-                    lastPosition.coords.longitude,
-                    position.coords.latitude,
-                    position.coords.longitude
+                    lastPosition.coords.latitude, lastPosition.coords.longitude,
+                    position.coords.latitude, position.coords.longitude
                 );
             }
             
@@ -290,11 +290,7 @@ export function RoutePlanner() {
             lastPosition = position;
         },
         (error) => {
-            toast({
-                variant: "destructive",
-                title: "GPS Error",
-                description: error.message,
-            });
+            toast({ variant: "destructive", title: "GPS Error", description: error.message });
             setIsTripActive(false);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -304,10 +300,7 @@ export function RoutePlanner() {
     setDistanceTraveled(0);
     setFuelConsumed(0);
     setTripCost(0);
-    toast({
-        title: "Trip Started!",
-        description: "Live tracking is now active."
-    });
+    toast({ title: "Trip Started!" });
   }
 
   const stopTrip = () => {
@@ -318,16 +311,40 @@ export function RoutePlanner() {
       setIsTripActive(false);
       setCurrentSpeed(0);
       setCurrentPosition(null);
-      toast({
-          title: "Trip Stopped",
-          description: "Live tracking has been disabled."
-      });
+      toast({ title: "Trip Stopped" });
+  }
+
+  const handleSaveFavorite = async () => {
+    const { start, end } = form.getValues();
+    if (!start || !end) {
+        toast({ variant: 'destructive', title: 'Cannot Save', description: 'Start and end points are required.' });
+        return;
+    }
+    const name = prompt("Enter a name for this favorite trip:", `${start} to ${end}`);
+    if (name) {
+        await saveFavoriteTrip({ name, start, end });
+        loadFavoriteTrips();
+        toast({ title: 'Trip Saved!' });
+    }
+  }
+
+  const handleLoadFavorite = (trip: FavoriteTrip) => {
+      form.setValue('start', trip.start);
+      form.setValue('end', trip.end);
+      toast({ title: 'Favorite Loaded!', description: `Loaded trip from ${trip.start} to ${trip.end}` });
+  }
+
+  const handleDeleteFavorite = async (id: string) => {
+      if (confirm('Are you sure you want to delete this favorite trip?')) {
+          await deleteFavoriteTrip(id);
+          loadFavoriteTrips();
+          toast({ title: 'Favorite Deleted' });
+      }
   }
 
   return (
     <div className="w-full mx-auto" dir="ltr">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Input and Details Column */}
         <div className="lg:col-span-1 flex flex-col gap-4">
           <Card>
             <CardHeader>
@@ -337,38 +354,24 @@ export function RoutePlanner() {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(getDirections)} className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="start"
-                      render={({ field }) => (
+                    <FormField control={form.control} name="start" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>
-                            <MapPin className="inline-block me-1 h-4 w-4" />
-                            Starting Point
-                          </FormLabel>
+                          <FormLabel><MapPin className="inline-block me-1 h-4 w-4" /> Starting Point</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., Ramallah" {...field} />
+                              <AutocompleteInput {...field} formFieldName="start" placeholder="e.g., Ramallah" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="end"
-                      render={({ field }) => (
+                      )} />
+                    <FormField control={form.control} name="end" render={({ field }) => (
                         <FormItem>
-                          <FormLabel>
-                            <MapPin className="inline-block me-1 h-4 w-4" />
-                            Destination
-                          </FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., Nablus" {...field} />
+                          <FormLabel><MapPin className="inline-block me-1 h-4 w-4" /> Destination</FormLabel>
+                           <FormControl>
+                              <AutocompleteInput {...field} formFieldName="end" placeholder="e.g., Nablus" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
-                      )}
-                    />
+                      )} />
                   </div>
                   <Separator className="my-4" />
                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -432,7 +435,8 @@ export function RoutePlanner() {
                       </FormItem>
                     )} />
                   </div>
-                    <Button type="submit" disabled={loading || isTripActive} className="w-full mt-4">
+                  <div className="flex items-center gap-2 mt-4">
+                    <Button type="submit" disabled={loading || isTripActive} className="w-full">
                         {loading ? (
                         <>
                             <Loader2 className="me-2 h-4 w-4 animate-spin" />
@@ -440,18 +444,45 @@ export function RoutePlanner() {
                         </>
                         ) : (
                         <>
-                            <Save className="me-2 h-4 w-4" />
+                            <Route className="me-2 h-4 w-4" />
                             Calculate Route & Cost
                         </>
                         )}
                     </Button>
+                     <Popover>
+                        <PopoverTrigger asChild>
+                           <Button type="button" variant="outline"><Star className="me-2 h-4 w-4" />Favorites</Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                            <div className="space-y-4">
+                                <h4 className="font-medium leading-none">Favorite Trips</h4>
+                                <Button size="sm" className="w-full" onClick={handleSaveFavorite}><Save className="me-2 h-4 w-4"/>Save Current Trip</Button>
+                                <Separator />
+                                <ScrollArea className="h-48">
+                                    <div className="space-y-2">
+                                        {favoriteTrips.length > 0 ? favoriteTrips.map(trip => (
+                                            <div key={trip.id} className="flex items-center justify-between p-2 rounded-md hover:bg-accent">
+                                                <button className="flex-grow text-left" onClick={() => handleLoadFavorite(trip)}>
+                                                    <p className="font-semibold">{trip.name}</p>
+                                                    <p className="text-sm text-muted-foreground">{trip.start} → {trip.end}</p>
+                                                </button>
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteFavorite(trip.id)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        )) : <p className="text-sm text-muted-foreground text-center p-4">No favorite trips saved yet.</p>}
+                                    </div>
+                                </ScrollArea>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                  </div>
                 </form>
               </Form>
             </CardContent>
           </Card>
         </div>
 
-        {/* Map and Results Column */}
         <div className="lg:col-span-2 flex flex-col gap-4">
           <Card className="flex-grow min-h-[400px]">
               <CardContent className="p-0 h-full w-full">
@@ -545,25 +576,49 @@ export function RoutePlanner() {
                           )}
                       </CardContent>
                   </Card>
+
+                   <Card className="md:col-span-2">
+                      <CardHeader><CardTitle className="flex items-center"><List className="me-2" /> Turn-by-Turn Directions</CardTitle></CardHeader>
+                      <CardContent>
+                          {loading && !routeInfo ? (
+                          <div className="space-y-2"><div className="h-40 bg-muted rounded w-full animate-pulse"></div></div>
+                          ) : routeInfo && routeInfo.steps.length > 0 ? (
+                          <ScrollArea className="h-48 pe-4">
+                              <ol className="space-y-3 list-decimal list-inside">
+                                  {routeInfo.steps.map((step, index) => (
+                                      <li key={index} className="flex items-start gap-2 p-2 bg-secondary/30 rounded-md">
+                                          <div className="flex-grow">
+                                              <p className="font-semibold">{step.instruction}</p>
+                                              <p className="text-sm text-muted-foreground">{step.distance}</p>
+                                          </div>
+                                      </li>
+                                  ))}
+                              </ol>
+                          </ScrollArea>
+                          ) : <p className="text-muted-foreground">Directions for your journey will be shown here.</p>}
+                      </CardContent>
+                  </Card>
+
                   <Card className="md:col-span-2">
                       <CardHeader><CardTitle className="flex items-center"><Sparkles className="me-2" /> Smart Travel Tips</CardTitle></CardHeader>
                       <CardContent>
                           {loading && !routeInfo ? (
-                          <div className="space-y-2"><div className="h-24 bg-muted rounded w-full animate-pulse"></div></div>
+                          <div className="space-y-2"><div className="h-40 bg-muted rounded w-full animate-pulse"></div></div>
                           ) : routeInfo ? (
-                          <ScrollArea className="h-40 pe-4">
+                          <ScrollArea className="h-48 pe-4">
                               <div className="whitespace-pre-wrap font-body text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: routeInfo.tips.replace(/\\n/g, '<br />').replace(/\* \s*/g, '• ') }} />
                           </ScrollArea>
                           ) : <p className="text-muted-foreground">Tips for your journey will be shown here.</p>}
                       </CardContent>
                   </Card>
+                  
                   <Card className="md:col-span-2">
                       <CardHeader><CardTitle className="flex items-center"><Fuel className="me-2" /> Gas Stations on Route</CardTitle></CardHeader>
                       <CardContent>
                            {loading && !routeInfo ? (
-                               <div className="space-y-4"><div className="h-24 bg-muted rounded w-full animate-pulse"></div></div>
+                               <div className="space-y-4"><div className="h-40 bg-muted rounded w-full animate-pulse"></div></div>
                            ) : routeInfo && routeInfo.gasStations.length > 0 ? (
-                              <ScrollArea className="h-40 pe-4">
+                              <ScrollArea className="h-48 pe-4">
                                   <ul className="space-y-3">
                                       {routeInfo.gasStations.map((station, index) => (
                                           <li key={index} className="flex items-center p-2 bg-secondary/30 rounded-md">
@@ -591,7 +646,3 @@ export function RoutePlanner() {
     </div>
   );
 }
-
-    
-
-    

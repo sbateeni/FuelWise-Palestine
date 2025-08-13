@@ -1,11 +1,13 @@
 import { openDB, DBSchema } from 'idb';
-import type { VehicleProfile } from './types';
+import type { VehicleProfile, FavoriteTrip } from './types';
 
 const DB_NAME = 'FuelWiseDB';
-const DB_VERSION = 2; // Incremented version
+const DB_VERSION = 3; // Incremented version
 const FUEL_PRICES_STORE = 'fuelPrices';
 const VEHICLE_PROFILE_STORE = 'vehicleProfile';
+const FAVORITE_TRIPS_STORE = 'favoriteTrips';
 const VEHICLE_PROFILE_KEY = 'currentUserVehicle';
+
 
 interface FuelWiseDB extends DBSchema {
   [FUEL_PRICES_STORE]: {
@@ -15,6 +17,11 @@ interface FuelWiseDB extends DBSchema {
   [VEHICLE_PROFILE_STORE]: {
     key: string;
     value: VehicleProfile;
+  };
+  [FAVORITE_TRIPS_STORE]: {
+      key: string;
+      value: FavoriteTrip;
+      indexes: { 'by-name': string };
   }
 }
 
@@ -27,7 +34,6 @@ const defaultPrices: { [key: string]: number } = {
 export async function getDB() {
   const db = await openDB<FuelWiseDB>(DB_NAME, DB_VERSION, {
     upgrade(db, oldVersion, newVersion, transaction) {
-      // Create fuel prices store if it doesn't exist (from version 1)
       if (!db.objectStoreNames.contains(FUEL_PRICES_STORE)) {
         const fuelStore = db.createObjectStore(FUEL_PRICES_STORE);
         for (const [fuelType, price] of Object.entries(defaultPrices)) {
@@ -35,9 +41,13 @@ export async function getDB() {
         }
       }
       
-      // Create vehicle profile store if it doesn't exist (from version 2)
       if (!db.objectStoreNames.contains(VEHICLE_PROFILE_STORE)) {
         db.createObjectStore(VEHICLE_PROFILE_STORE);
+      }
+
+      if (!db.objectStoreNames.contains(FAVORITE_TRIPS_STORE)) {
+        const favoriteStore = db.createObjectStore(FAVORITE_TRIPS_STORE, { keyPath: 'id' });
+        favoriteStore.createIndex('by-name', 'name');
       }
     },
   });
@@ -55,11 +65,10 @@ export async function getAllFuelPrices(): Promise<{ [key: string]: number }> {
     try {
         const tx = db.transaction(FUEL_PRICES_STORE, 'readonly');
         const store = tx.objectStore(FUEL_PRICES_STORE);
-        const keys = await store.getAllKeys() as string[]; // Cast keys to string array
+        const keys = await store.getAllKeys() as string[];
         const values = await store.getAll();
         await tx.done;
 
-        // This handles the case where the DB might be empty on first load and needs seeding
         if (keys.length === 0 && values.length === 0) {
             const writeTx = db.transaction(FUEL_PRICES_STORE, 'readwrite');
             const writeStore = writeTx.objectStore(FUEL_PRICES_STORE);
@@ -73,7 +82,6 @@ export async function getAllFuelPrices(): Promise<{ [key: string]: number }> {
             prices[key] = values[index];
         });
         
-        // Check if default prices keys are in the db, if not, add them
         const writeTx = db.transaction(FUEL_PRICES_STORE, 'readwrite');
         const writeStore = writeTx.objectStore(FUEL_PRICES_STORE);
         let updated = false;
@@ -88,7 +96,7 @@ export async function getAllFuelPrices(): Promise<{ [key: string]: number }> {
 
         return prices;
     } catch (error) {
-        console.warn("Could not get fuel prices, falling back to default. This may happen if the store was just created.", error);
+        console.warn("Could not get fuel prices, falling back to default.", error);
         return defaultPrices;
     }
 }
@@ -100,7 +108,6 @@ export async function saveVehicleProfile(profile: VehicleProfile): Promise<void>
 
 export async function getVehicleProfile(): Promise<VehicleProfile | undefined> {
     const db = await getDB();
-    // Use a transaction to safely access the store
     try {
         const tx = db.transaction(VEHICLE_PROFILE_STORE, 'readonly');
         const store = tx.objectStore(VEHICLE_PROFILE_STORE);
@@ -111,4 +118,22 @@ export async function getVehicleProfile(): Promise<VehicleProfile | undefined> {
         console.error("Failed to get vehicle profile, the store might not exist yet.", error);
         return undefined;
     }
+}
+
+export async function saveFavoriteTrip(trip: Omit<FavoriteTrip, 'id'>): Promise<string> {
+    const db = await getDB();
+    const id = `${trip.start}-${trip.end}-${Date.now()}`;
+    const newTrip = { ...trip, id };
+    await db.put(FAVORITE_TRIPS_STORE, newTrip);
+    return id;
+}
+
+export async function getFavoriteTrips(): Promise<FavoriteTrip[]> {
+    const db = await getDB();
+    return db.getAll(FAVORITE_TRIPS_STORE);
+}
+
+export async function deleteFavoriteTrip(id: string): Promise<void> {
+    const db = await getDB();
+    await db.delete(FAVORITE_TRIPS_STORE, id);
 }

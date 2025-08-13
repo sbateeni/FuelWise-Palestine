@@ -31,13 +31,15 @@ export interface GasStation {
     location: string;
 }
 
+export interface RouteStep {
+    instruction: string;
+    distance: string;
+}
+
 export interface RouteInfo {
     distance: string;
     duration: string;
-    steps: Array<{
-        instruction: string;
-        distance: string;
-    }>;
+    steps: RouteStep[];
     tips: string;
     routeGeometry: GeoJsonObject;
     gasStations: GasStation[];
@@ -54,4 +56,11 @@ export interface VehicleProfile {
   vehicleClass: string;
   consumption: number;
   fuelType: string;
+}
+
+export interface FavoriteTrip {
+  id: string;
+  name: string;
+  start: string;
+  end: string;
 }
