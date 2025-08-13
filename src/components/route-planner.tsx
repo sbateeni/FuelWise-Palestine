@@ -528,121 +528,121 @@ export function RoutePlanner() {
               </CardContent>
           </Card>
 
-           {(loading || routeInfo) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Card className="bg-card/80 backdrop-blur-sm border-primary/20">
-                      <CardHeader><CardTitle className="flex items-center font-headline tracking-wider"><Waypoints className="me-3 text-primary" /> Trip Details</CardTitle></CardHeader>
-                      <CardContent>
-                          {loading && !routeInfo ? (
-                              <div className="space-y-4"><div className="h-20 bg-muted/50 rounded w-full animate-pulse"></div></div>
-                          ) : routeInfo ? (
-                              <div className="space-y-4">
-                                  <div className="flex justify-around text-center">
-                                      <div className="flex flex-col items-center gap-1">
-                                          <Navigation className="h-7 w-7 text-primary" />
-                                          <span className="font-bold text-xl font-headline">{routeInfo.distance}</span>
-                                          <span className="text-xs text-muted-foreground">Distance</span>
-                                      </div>
-                                      <div className="flex flex-col items-center gap-1">
-                                          <Clock className="h-7 w-7 text-primary" />
-                                          <span className="font-bold text-xl font-headline">{routeInfo.duration}</span>
-                                          <span className="text-xs text-muted-foreground">Duration</span>
-                                      </div>
-                                  </div>
-                              </div>
-                          ) : <p className="text-muted-foreground text-center p-4">Calculate a route to see details.</p>}
-                      </CardContent>
-                  </Card>
-                   <Card className="bg-card/80 backdrop-blur-sm border-primary/20">
-                      <CardHeader><CardTitle className="flex items-center font-headline tracking-wider"><CircleDollarSign className="me-3 text-primary" /> Est. Fuel Cost</CardTitle></CardHeader>
-                      <CardContent>
-                          {loading && !routeInfo ? (
-                              <div className="space-y-4"><div className="h-20 bg-muted/50 rounded w-full animate-pulse"></div></div>
-                          ) : routeInfo && routeInfo.cost ? (
-                              <div className="flex justify-around text-center">
-                                  <div className="flex flex-col items-center gap-1">
-                                      <Droplets className="h-7 w-7 text-primary" />
-                                      <span className="font-bold text-xl font-headline">{routeInfo.cost.fuelNeeded} L</span>
-                                      <span className="text-xs text-muted-foreground">Fuel Needed</span>
-                                  </div>
-                                  <div className="flex flex-col items-center gap-1">
-                                      <CircleDollarSign className="h-7 w-7 text-primary" />
-                                      <span className="font-bold text-xl font-headline">{routeInfo.cost.totalCost} ILS</span>
-                                      <span className="text-xs text-muted-foreground">Total Cost</span>
-                                  </div>
-                              </div>
-                          ) : (
-                            <p className="text-muted-foreground text-center p-4">Cost information will appear here.</p>
-                          )}
-                      </CardContent>
-                  </Card>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <Card className="bg-card/80 backdrop-blur-sm border-primary/20">
+                   <CardHeader><CardTitle className="flex items-center font-headline tracking-wider"><Waypoints className="me-3 text-primary" /> Trip Details</CardTitle></CardHeader>
+                   <CardContent>
+                       {loading ? (
+                           <div className="space-y-4"><div className="h-20 bg-muted/50 rounded w-full animate-pulse"></div></div>
+                       ) : routeInfo ? (
+                           <div className="space-y-4">
+                               <div className="flex justify-around text-center">
+                                   <div className="flex flex-col items-center gap-1">
+                                       <Navigation className="h-7 w-7 text-primary" />
+                                       <span className="font-bold text-xl font-headline">{routeInfo.distance}</span>
+                                       <span className="text-xs text-muted-foreground">Distance</span>
+                                   </div>
+                                   <div className="flex flex-col items-center gap-1">
+                                       <Clock className="h-7 w-7 text-primary" />
+                                       <span className="font-bold text-xl font-headline">{routeInfo.duration}</span>
+                                       <span className="text-xs text-muted-foreground">Duration</span>
+                                   </div>
+                               </div>
+                           </div>
+                       ) : <p className="text-muted-foreground text-center p-4">Calculate a route to see details.</p>}
+                   </CardContent>
+               </Card>
+                <Card className="bg-card/80 backdrop-blur-sm border-primary/20">
+                   <CardHeader><CardTitle className="flex items-center font-headline tracking-wider"><CircleDollarSign className="me-3 text-primary" /> Est. Fuel Cost</CardTitle></CardHeader>
+                   <CardContent>
+                       {loading ? (
+                           <div className="space-y-4"><div className="h-20 bg-muted/50 rounded w-full animate-pulse"></div></div>
+                       ) : routeInfo && routeInfo.cost ? (
+                           <div className="flex justify-around text-center">
+                               <div className="flex flex-col items-center gap-1">
+                                   <Droplets className="h-7 w-7 text-primary" />
+                                   <span className="font-bold text-xl font-headline">{routeInfo.cost.fuelNeeded} L</span>
+                                   <span className="text-xs text-muted-foreground">Fuel Needed</span>
+                               </div>
+                               <div className="flex flex-col items-center gap-1">
+                                   <CircleDollarSign className="h-7 w-7 text-primary" />
+                                   <span className="font-bold text-xl font-headline">{routeInfo.cost.totalCost} ILS</span>
+                                   <span className="text-xs text-muted-foreground">Total Cost</span>
+                               </div>
+                           </div>
+                       ) : (
+                         <p className="text-muted-foreground text-center p-4">Cost information will appear here.</p>
+                       )}
+                   </CardContent>
+               </Card>
 
-                   <Card className="md:col-span-2 bg-card/80 backdrop-blur-sm border-primary/20">
-                      <CardHeader><CardTitle className="flex items-center font-headline tracking-wider"><List className="me-3 text-primary" /> Turn-by-Turn Directions</CardTitle></CardHeader>
-                      <CardContent>
-                          {loading && !routeInfo ? (
-                          <div className="space-y-2"><div className="h-40 bg-muted/50 rounded w-full animate-pulse"></div></div>
-                          ) : routeInfo && routeInfo.steps.length > 0 ? (
-                          <ScrollArea className="h-48 pe-4">
-                              <ol className="space-y-3 list-decimal list-inside">
-                                  {routeInfo.steps.map((step, index) => (
-                                      <li key={index} className="flex items-start gap-3 p-2 bg-secondary/50 rounded-md">
-                                          <div className="flex-grow">
-                                              <p className="font-semibold">{step.instruction}</p>
-                                              <p className="text-sm text-muted-foreground">{step.distance}</p>
-                                          </div>
-                                      </li>
-                                  ))}
-                              </ol>
-                          </ScrollArea>
-                          ) : <p className="text-muted-foreground p-4 text-center">Directions for your journey will be shown here.</p>}
-                      </CardContent>
-                  </Card>
+                <Card className="md:col-span-2 bg-card/80 backdrop-blur-sm border-primary/20">
+                   <CardHeader><CardTitle className="flex items-center font-headline tracking-wider"><List className="me-3 text-primary" /> Turn-by-Turn Directions</CardTitle></CardHeader>
+                   <CardContent>
+                       {loading ? (
+                       <div className="space-y-2"><div className="h-40 bg-muted/50 rounded w-full animate-pulse"></div></div>
+                       ) : routeInfo && routeInfo.steps.length > 0 ? (
+                       <ScrollArea className="h-48 pe-4">
+                           <ol className="space-y-3 list-decimal list-inside">
+                               {routeInfo.steps.map((step, index) => (
+                                   <li key={index} className="flex items-start gap-3 p-2 bg-secondary/50 rounded-md">
+                                       <div className="flex-grow">
+                                           <p className="font-semibold">{step.instruction}</p>
+                                           <p className="text-sm text-muted-foreground">{step.distance}</p>
+                                       </div>
+                                   </li>
+                               ))}
+                           </ol>
+                       </ScrollArea>
+                       ) : <p className="text-muted-foreground p-4 text-center">Directions for your journey will be shown here.</p>}
+                   </CardContent>
+               </Card>
 
-                  <Card className="md:col-span-2 bg-card/80 backdrop-blur-sm border-primary/20">
-                      <CardHeader><CardTitle className="flex items-center font-headline tracking-wider"><Sparkles className="me-3 text-primary" /> Smart Travel Tips</CardTitle></CardHeader>
-                      <CardContent>
-                          {loading && !routeInfo ? (
-                          <div className="space-y-2"><div className="h-40 bg-muted/50 rounded w-full animate-pulse"></div></div>
-                          ) : routeInfo ? (
-                          <ScrollArea className="h-48 pe-4">
-                              <div className="whitespace-pre-wrap font-body text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: routeInfo.tips.replace(/\\n/g, '<br />').replace(/\* \s*/g, '• ') }} />
-                          </ScrollArea>
-                          ) : <p className="text-muted-foreground p-4 text-center">Tips for your journey will be shown here.</p>}
-                      </CardContent>
-                  </Card>
-                  
-                  <Card className="md:col-span-2 bg-card/80 backdrop-blur-sm border-primary/20">
-                      <CardHeader><CardTitle className="flex items-center font-headline tracking-wider"><Fuel className="me-3 text-primary" /> Gas Stations on Route</CardTitle></CardHeader>
-                      <CardContent>
-                           {loading && !routeInfo ? (
-                               <div className="space-y-4"><div className="h-40 bg-muted/50 rounded w-full animate-pulse"></div></div>
-                           ) : routeInfo && routeInfo.gasStations.length > 0 ? (
-                              <ScrollArea className="h-48 pe-4">
-                                  <ul className="space-y-3">
-                                      {routeInfo.gasStations.map((station, index) => (
-                                          <li key={index} className="flex items-center p-3 bg-secondary/50 rounded-md">
-                                              <Fuel className="w-5 h-5 me-4 text-primary" />
-                                              <div>
-                                                  <p className="font-semibold">{station.name}</p>
-                                                  <p className="text-sm text-muted-foreground flex items-center">
-                                                      <MapPin className="w-3 h-3 me-1" />
-                                                      {station.location}
-                                                  </p>
-                                              </div>
-                                          </li>
-                                      ))}
-                                  </ul>
-                              </ScrollArea>
-                           ) : (
-                              <p className="text-muted-foreground p-4 text-center">Suggested gas stations will be listed here.</p>
-                           )}
-                      </CardContent>
-                  </Card>
-              </div>
-           )}
+               <Card className="md:col-span-2 bg-card/80 backdrop-blur-sm border-primary/20">
+                   <CardHeader><CardTitle className="flex items-center font-headline tracking-wider"><Sparkles className="me-3 text-primary" /> Smart Travel Tips</CardTitle></CardHeader>
+                   <CardContent>
+                       {loading ? (
+                       <div className="space-y-2"><div className="h-40 bg-muted/50 rounded w-full animate-pulse"></div></div>
+                       ) : routeInfo ? (
+                       <ScrollArea className="h-48 pe-4">
+                           <div className="whitespace-pre-wrap font-body text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: routeInfo.tips.replace(/\\n/g, '<br />').replace(/\* \s*/g, '• ') }} />
+                       </ScrollArea>
+                       ) : <p className="text-muted-foreground p-4 text-center">Tips for your journey will be shown here.</p>}
+                   </CardContent>
+               </Card>
+               
+               <Card className="md:col-span-2 bg-card/80 backdrop-blur-sm border-primary/20">
+                   <CardHeader><CardTitle className="flex items-center font-headline tracking-wider"><Fuel className="me-3 text-primary" /> Gas Stations on Route</CardTitle></CardHeader>
+                   <CardContent>
+                        {loading ? (
+                            <div className="space-y-4"><div className="h-40 bg-muted/50 rounded w-full animate-pulse"></div></div>
+                        ) : routeInfo && routeInfo.gasStations.length > 0 ? (
+                           <ScrollArea className="h-48 pe-4">
+                               <ul className="space-y-3">
+                                   {routeInfo.gasStations.map((station, index) => (
+                                       <li key={index} className="flex items-center p-3 bg-secondary/50 rounded-md">
+                                           <Fuel className="w-5 h-5 me-4 text-primary" />
+                                           <div>
+                                               <p className="font-semibold">{station.name}</p>
+                                               <p className="text-sm text-muted-foreground flex items-center">
+                                                   <MapPin className="w-3 h-3 me-1" />
+                                                   {station.location}
+                                               </p>
+                                           </div>
+                                       </li>
+                                   ))}
+                               </ul>
+                           </ScrollArea>
+                        ) : (
+                           <p className="text-muted-foreground p-4 text-center">Suggested gas stations will be listed here.</p>
+                        )}
+                   </CardContent>
+               </Card>
+           </div>
         </div>
       </div>
     </div>
   );
 }
+
+    
