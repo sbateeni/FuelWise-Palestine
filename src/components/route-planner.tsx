@@ -60,6 +60,7 @@ export function RoutePlanner() {
 
   // State for live tracking
   const [isTripActive, setIsTripActive] = React.useState(false);
+  const [currentPosition, setCurrentPosition] = React.useState<[number, number] | null>(null);
   const [currentSpeed, setCurrentSpeed] = React.useState(0);
   const [distanceTraveled, setDistanceTraveled] = React.useState(0);
   const [fuelConsumed, setFuelConsumed] = React.useState(0);
@@ -262,6 +263,7 @@ export function RoutePlanner() {
 
     const watchId = navigator.geolocation.watchPosition(
         (position) => {
+            setCurrentPosition([position.coords.latitude, position.coords.longitude]);
             setCurrentSpeed(position.coords.speed ? position.coords.speed * 3.6 : 0); // m/s to km/h
             
             let newDistance = 0;
@@ -315,6 +317,7 @@ export function RoutePlanner() {
       }
       setIsTripActive(false);
       setCurrentSpeed(0);
+      setCurrentPosition(null);
       toast({
           title: "Trip Stopped",
           description: "Live tracking has been disabled."
@@ -453,7 +456,7 @@ export function RoutePlanner() {
           <Card className="flex-grow min-h-[400px]">
               <CardContent className="p-0 h-full w-full">
                 <Suspense fallback={<div className="h-full w-full bg-muted flex items-center justify-center"><p>Loading Map...</p></div>}>
-                  <Map routeGeometry={routeInfo?.routeGeometry} />
+                  <Map routeGeometry={routeInfo?.routeGeometry} livePosition={currentPosition} />
                 </Suspense>
               </CardContent>
           </Card>
