@@ -9,7 +9,7 @@ const GoogleTranslate: React.FC = () => {
         // @ts-ignore
         if (window.google && window.google.translate) {
              // @ts-ignore
-            new window.google.translate.TranslateElement({pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.SIMPLE}, 'google_translate_element');
+            new window.google.translate.TranslateElement({pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.VERTICAL}, 'google_translate_element');
         }
         return;
     };
@@ -17,7 +17,7 @@ const GoogleTranslate: React.FC = () => {
     // Define the callback function
     (window as any).googleTranslateElementInit = () => {
       // @ts-ignore
-      new window.google.translate.TranslateElement({pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.SIMPLE}, 'google_translate_element');
+      new window.google.translate.TranslateElement({pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.VERTICAL}, 'google_translate_element');
     };
 
     // Create the script element
