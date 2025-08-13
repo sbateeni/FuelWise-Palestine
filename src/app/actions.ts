@@ -4,6 +4,7 @@ import { getGeocode } from '@/ai/flows/geocode';
 import { getTravelTips } from '@/ai/flows/travel-tips';
 import { getGasStations } from '@/ai/flows/gas-stations';
 import type { RouteInfo, FuelCostFormValues } from '@/lib/types';
+import { suggestPlaces } from '@/ai/flows/places-autocomplete';
 
 
 export async function getPlaceSuggestions(query: string): Promise<string[]> {
@@ -11,7 +12,6 @@ export async function getPlaceSuggestions(query: string): Promise<string[]> {
         return [];
     }
     try {
-        const { suggestPlaces } = await import('@/ai/flows/places-autocomplete');
         const response = await suggestPlaces({ query });
         return response.suggestions;
     } catch (error) {
