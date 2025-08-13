@@ -426,40 +426,37 @@ export function RoutePlanner() {
                 </Suspense>
               </CardContent>
           </Card>
-           {(loading || routeInfo || isTripActive) && (
+          
+           <Card className="md:col-span-2">
+              <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center">
+                      {isTripActive ? <StopCircle className="me-2 text-red-500" /> : <PlayCircle className="me-2 text-green-500" />}
+                      {isTripActive ? "Live Trip Active" : "Start Live Trip"}
+                  </CardTitle>
+                  <Button onClick={isTripActive ? stopTrip : startTrip} disabled={loading} size="sm">
+                      {isTripActive ? 'Stop Trip' : 'Start Trip'}
+                  </Button>
+              </CardHeader>
+              {isTripActive && (
+                <CardContent>
+                    <div className="flex justify-around text-center">
+                        <div className="flex flex-col items-center gap-1">
+                            <TrendingUp className="h-7 w-7 text-primary" />
+                            <span className="font-bold text-lg">{currentSpeed.toFixed(1)} km/h</span>
+                            <span className="text-xs text-muted-foreground">Current Speed</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                            <Milestone className="h-7 w-7 text-primary" />
+                            <span className="font-bold text-lg">{distanceTraveled.toFixed(2)} km</span>
+                            <span className="text-xs text-muted-foreground">Distance Traveled</span>
+                        </div>
+                    </div>
+                </CardContent>
+              )}
+          </Card>
+
+           {(loading || routeInfo) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Live Data Card */}
-                  {routeInfo && (
-                  <Card className="md:col-span-2">
-                      <CardHeader className="flex flex-row items-center justify-between">
-                          <CardTitle className="flex items-center">
-                              {isTripActive ? <StopCircle className="me-2 text-red-500" /> : <PlayCircle className="me-2 text-green-500" />}
-                              {isTripActive ? "Live Trip Active" : "Start Live Trip"}
-                          </CardTitle>
-                          <Button onClick={isTripActive ? stopTrip : startTrip} disabled={loading} size="sm">
-                              {isTripActive ? 'Stop Trip' : 'Start Trip'}
-                          </Button>
-                      </CardHeader>
-                      {isTripActive && (
-                        <CardContent>
-                            <div className="flex justify-around text-center">
-                                <div className="flex flex-col items-center gap-1">
-                                    <TrendingUp className="h-7 w-7 text-primary" />
-                                    <span className="font-bold text-lg">{currentSpeed.toFixed(1)} km/h</span>
-                                    <span className="text-xs text-muted-foreground">Current Speed</span>
-                                </div>
-                                <div className="flex flex-col items-center gap-1">
-                                    <Milestone className="h-7 w-7 text-primary" />
-                                    <span className="font-bold text-lg">{distanceTraveled.toFixed(2)} km</span>
-                                    <span className="text-xs text-muted-foreground">Distance Traveled</span>
-                                </div>
-                            </div>
-                        </CardContent>
-                      )}
-                  </Card>
-                  )}
-
-
                   <Card>
                       <CardHeader><CardTitle className="flex items-center"><Waypoints className="me-2" /> Trip Details</CardTitle></CardHeader>
                       <CardContent>
