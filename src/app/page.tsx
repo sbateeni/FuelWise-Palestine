@@ -1,6 +1,8 @@
 import { RoutePlanner } from '@/components/route-planner';
 import GoogleTranslate from '@/components/google-translate';
 import { Car } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default function Home() {
   return (
