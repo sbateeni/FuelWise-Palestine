@@ -19,6 +19,10 @@ import {
   Building,
   CarTaxiFront,
   Wand2,
+  PlayCircle,
+  StopCircle,
+  TrendingUp,
+  Milestone
 } from "lucide-react";
 import { Suspense } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -53,6 +57,12 @@ export function RoutePlanner() {
   const [loadingConsumption, setLoadingConsumption] = React.useState(false);
   const { toast } = useToast();
   const [fuelTypes, setFuelTypes] = React.useState<string[]>([]);
+
+  // State for live tracking
+  const [isTripActive, setIsTripActive] = React.useState(false);
+  const [currentSpeed, setCurrentSpeed] = React.useState(0);
+  const [distanceTraveled, setDistanceTraveled] = React.useState(0);
+  const watchIdRef = React.useRef<number | null>(null);
   
   const form = useForm<FuelCostFormValues>({
     resolver: zodResolver(fuelCostSchema),
@@ -110,12 +120,19 @@ export function RoutePlanner() {
 
     return () => {
         isMounted = false;
+        // Clean up geolocation watch on component unmount
+        if (watchIdRef.current) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+        }
     };
   }, [form, toast]);
+
 
   const getDirections = React.useCallback(async (data: FuelCostFormValues) => {
     setLoading(true);
     setRouteInfo(null);
+    if(isTripActive) stopTrip(); // Stop any active trip before calculating a new one
+
     try {
         const price = await getFuelPrice(data.fuelType);
         if (price === undefined) {
@@ -162,7 +179,7 @@ export function RoutePlanner() {
     } finally {
         setLoading(false);
     }
-  }, [toast, form]);
+  }, [toast, isTripActive]);
 
   const fetchConsumption = React.useCallback(async () => {
     const { manufacturer, model, year } = form.getValues();
@@ -201,6 +218,78 @@ export function RoutePlanner() {
     }
   }, [form, toast]);
   
+  // Haversine formula to calculate distance between two lat/lng points
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+  }
+
+  const startTrip = () => {
+    if (!navigator.geolocation) {
+        toast({
+            variant: "destructive",
+            title: "GPS not supported",
+            description: "Your browser does not support geolocation.",
+        });
+        return;
+    }
+
+    let lastPosition: GeolocationPosition | null = null;
+
+    const watchId = navigator.geolocation.watchPosition(
+        (position) => {
+            setCurrentSpeed(position.coords.speed ? position.coords.speed * 3.6 : 0); // m/s to km/h
+
+            if (lastPosition) {
+                const newDistance = calculateDistance(
+                    lastPosition.coords.latitude,
+                    lastPosition.coords.longitude,
+                    position.coords.latitude,
+                    position.coords.longitude
+                );
+                setDistanceTraveled(prev => prev + newDistance);
+            }
+            lastPosition = position;
+        },
+        (error) => {
+            toast({
+                variant: "destructive",
+                title: "GPS Error",
+                description: error.message,
+            });
+            setIsTripActive(false);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+    watchIdRef.current = watchId;
+    setIsTripActive(true);
+    setDistanceTraveled(0); // Reset distance
+    toast({
+        title: "Trip Started!",
+        description: "Live tracking is now active."
+    });
+  }
+
+  const stopTrip = () => {
+      if (watchIdRef.current) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+      }
+      setIsTripActive(false);
+      setCurrentSpeed(0);
+      toast({
+          title: "Trip Stopped",
+          description: "Live tracking has been disabled."
+      });
+  }
+
   return (
     <div className="w-full mx-auto" dir="ltr">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -309,19 +398,19 @@ export function RoutePlanner() {
                       </FormItem>
                     )} />
                   </div>
-                  <Button type="submit" disabled={loading} className="w-full mt-4">
-                    {loading ? (
-                      <>
-                        <Loader2 className="me-2 h-4 w-4 animate-spin" />
-                        Calculating...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="me-2 h-4 w-4" />
-                        Calculate Route & Cost
-                      </>
-                    )}
-                  </Button>
+                    <Button type="submit" disabled={loading || isTripActive} className="w-full mt-4">
+                        {loading ? (
+                        <>
+                            <Loader2 className="me-2 h-4 w-4 animate-spin" />
+                            Calculating...
+                        </>
+                        ) : (
+                        <>
+                            <Save className="me-2 h-4 w-4" />
+                            Calculate Route & Cost
+                        </>
+                        )}
+                    </Button>
                 </form>
               </Form>
             </CardContent>
@@ -337,8 +426,40 @@ export function RoutePlanner() {
                 </Suspense>
               </CardContent>
           </Card>
-           {(loading || routeInfo) && (
+           {(loading || routeInfo || isTripActive) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Live Data Card */}
+                  {routeInfo && (
+                  <Card className="md:col-span-2">
+                      <CardHeader className="flex flex-row items-center justify-between">
+                          <CardTitle className="flex items-center">
+                              {isTripActive ? <StopCircle className="me-2 text-red-500" /> : <PlayCircle className="me-2 text-green-500" />}
+                              {isTripActive ? "Live Trip Active" : "Start Live Trip"}
+                          </CardTitle>
+                          <Button onClick={isTripActive ? stopTrip : startTrip} disabled={loading} size="sm">
+                              {isTripActive ? 'Stop Trip' : 'Start Trip'}
+                          </Button>
+                      </CardHeader>
+                      {isTripActive && (
+                        <CardContent>
+                            <div className="flex justify-around text-center">
+                                <div className="flex flex-col items-center gap-1">
+                                    <TrendingUp className="h-7 w-7 text-primary" />
+                                    <span className="font-bold text-lg">{currentSpeed.toFixed(1)} km/h</span>
+                                    <span className="text-xs text-muted-foreground">Current Speed</span>
+                                </div>
+                                <div className="flex flex-col items-center gap-1">
+                                    <Milestone className="h-7 w-7 text-primary" />
+                                    <span className="font-bold text-lg">{distanceTraveled.toFixed(2)} km</span>
+                                    <span className="text-xs text-muted-foreground">Distance Traveled</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                      )}
+                  </Card>
+                  )}
+
+
                   <Card>
                       <CardHeader><CardTitle className="flex items-center"><Waypoints className="me-2" /> Trip Details</CardTitle></CardHeader>
                       <CardContent>
@@ -359,7 +480,7 @@ export function RoutePlanner() {
                                       </div>
                                   </div>
                               </div>
-                          ) : null}
+                          ) : <p className="text-muted-foreground text-center">Calculate a route to see details.</p>}
                       </CardContent>
                   </Card>
                    <Card>
@@ -381,7 +502,7 @@ export function RoutePlanner() {
                                   </div>
                               </div>
                           ) : (
-                            <p className="text-muted-foreground text-center">Cost could not be calculated.</p>
+                            <p className="text-muted-foreground text-center">Cost information will appear here.</p>
                           )}
                       </CardContent>
                   </Card>
@@ -394,7 +515,7 @@ export function RoutePlanner() {
                           <ScrollArea className="h-40 pe-4">
                               <div className="whitespace-pre-wrap font-body text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: routeInfo.tips.replace(/\\n/g, '<br />').replace(/\* \s*/g, '• ') }} />
                           </ScrollArea>
-                          ) : null}
+                          ) : <p className="text-muted-foreground">Tips for your journey will be shown here.</p>}
                       </CardContent>
                   </Card>
                   <Card className="md:col-span-2">
@@ -420,7 +541,7 @@ export function RoutePlanner() {
                                   </ul>
                               </ScrollArea>
                            ) : (
-                              <p className="text-muted-foreground">No suggested gas stations for this route.</p>
+                              <p className="text-muted-foreground">Suggested gas stations will be listed here.</p>
                            )}
                       </CardContent>
                   </Card>
