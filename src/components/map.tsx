@@ -101,8 +101,13 @@ export default function Map({ routeGeometry, livePosition }: MapProps) {
                 });
                 liveMarkerRef.current = L.marker(livePosition, { icon: liveIcon }).addTo(mapRef.current);
             }
-            // Pan the map to the new position
-            mapRef.current.panTo(livePosition, { animate: true, duration: 1 });
+            // Center the map on the new position while maintaining zoom
+             mapRef.current.setView(livePosition, mapRef.current.getZoom(), {
+                animate: true,
+                pan: {
+                    duration: 1
+                }
+            });
         } else {
             // Remove marker if trip ends
             if (liveMarkerRef.current) {
